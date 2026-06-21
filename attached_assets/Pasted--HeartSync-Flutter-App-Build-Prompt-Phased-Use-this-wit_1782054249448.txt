@@ -1,0 +1,184 @@
+# HeartSync — Flutter App Build Prompt (Phased)
+
+Use this with any Flutter-capable coding agent (Claude Code, Cursor, etc.) — NOT Replit's
+native mobile agent, since that targets React Native/Expo, not Flutter.
+
+Paste the **Session Context** once at the start of every new agent session. Then paste
+**one phase at a time**, in order, inside the same project/conversation so the agent keeps
+context from the previous phase instead of restarting from scratch.
+
+---
+
+## Session Context (paste at the start of every session)
+
+```
+I'm building "HeartSync", a Flutter app for long-distance couples — just the two of us
+in a private "couple space".
+
+Stack: Flutter (Dart), Firebase (Auth, Firestore, Storage, Cloud Messaging), RevenueCat
+for subscriptions.
+
+Firebase project ID: heartsync-b4e9f (already created in the Firebase console — use
+`flutterfire configure` for platform config, never hardcode web SDK keys into the app).
+
+Architecture rule: every Firestore collection is scoped under /couples/{coupleId}/... —
+there are only ever 2 members per couple space, never more.
+
+Code organization: one feature = one folder under /lib/features/{feature_name}/ with its
+own models, repository, and screens. Don't touch other features' files when adding a new
+one — only the shared Firestore service layer in /lib/core/.
+```
+
+---
+
+## Phase 0 — Foundation (build first, don't skip)
+
+```
+Set up the Flutter project foundation for HeartSync:
+
+1. Firebase init via firebase_options.dart (flutterfire configure), firebase_auth
+   (email/phone), cloud_firestore, firebase_storage, firebase_messaging.
+
+2. Auth flow: sign up → create OR join a "couple space" via a 6-character invite code →
+   creates couples/{coupleId} with members: [uid1, uid2], anniversaryDate, inviteCode,
+   status: "active".
+
+3. Create this Firestore schema now, even for collections you won't use until later
+   phases — this avoids migrations down the line:
+   - couples/{coupleId}: members, anniversaryDate, inviteCode, status
+   - couples/{coupleId}/memories/{id}: type(photo/video), url, caption, date, tags, isFavorite
+   - couples/{coupleId}/notes/{id}: text, authorId, openDate, opened(bool)
+   - couples/{coupleId}/moods/{id}: userId, mood, timestamp
+   - couples/{coupleId}/messages/{id}: senderId, type(text/voice/quick), content, sentAt, readAt
+   - couples/{coupleId}/milestones/{id}: title, date, lat, lng, type
+   - couples/{coupleId}/challenges/{id}: title, status, completedBy
+   - couples/{coupleId}/vault/{id}: encryptedUrl, pinHash
+   - couples/{coupleId}/battery: level, lastUpdated
+   - couples/{coupleId}/subscription: tier, expiresAt, revenueCatId
+
+4. Firestore security rules: only the 2 members listed in couples/{coupleId}.members can
+   read/write anything under that couple's subcollections. No cross-couple access, ever.
+
+5. Bottom nav shell with Home / Notes / Chat / Profile tabs — leave room to add tabs later.
+
+Don't build UI polish yet. Goal: auth + invite-code linking + empty navigation working
+end to end.
+```
+
+---
+
+## Phase 1 — Daily core loop (build this fully — it's what makes people open the app daily)
+
+```
+Add, inside the Phase 0 structure:
+
+1. Memory Timeline: add a photo/video memory with caption + date, vertical timeline
+   grouped by month, tap to view full screen.
+
+2. Scheduled Love Notes: write a note, pick a future "open date", partner sees a locked
+   card until that date, push notification the day it unlocks.
+
+3. Daily Mood: 4-emoji picker, writes to couples/{id}/moods, partner's home screen shows
+   the current mood live via a Firestore snapshot listener.
+
+4. Virtual Hug: one button → FCM push "X sent you a hug ❤️" to the partner instantly,
+   plus a small in-app animation.
+
+5. Relationship Streak: increments when BOTH partners take at least one action (note/
+   memory/mood/hug) the same calendar day; resets if a day is missed.
+
+Use Firestore listeners for live state (mood, hug) and Cloud Functions or FCM data
+messages to fire notifications when the app is backgrounded.
+```
+
+---
+
+## Phase 2 — Communication layer
+
+```
+Add a private couple chat, isolated in /lib/features/chat/ — don't modify Phase 1 files:
+
+1. Text messages, voice notes (record + playback, stored in Firebase Storage), and
+   quick-reply presets (good morning / good night / miss you).
+2. Read receipts and typing indicators via a typing/{userId} doc with a timestamp,
+   cleared after 5s of inactivity.
+3. Online/last-seen status — prefer Firebase Realtime Database presence (better fit
+   than Firestore for this) or Firestore + a Cloud Function onDisconnect handler.
+```
+
+---
+
+## Phase 3 — Gamification
+
+```
+Add:
+
+1. Love Battery: 0–100 per couple, +5 per daily action (message/memory/note/hug),
+   -3 per inactive day, shown as a battery icon on the home screen.
+2. Hearts/XP and a simple level (Level = totalXP / 100) with a level-up animation.
+3. Couple Challenges: fixed list (e.g. "share a voice note today"), tracked per couple,
+   completion grants XP.
+4. Daily Questions: one shared question/day pulled from a static JSON list of 200,
+   cycled by day-of-year; both answer privately, answers reveal once both have answered.
+
+Keep field names stable once decided — couples/{id}/battery.level and
+couples/{id}/xp.total — later features (badges, streaks) will reference them.
+```
+
+---
+
+## Phase 4 — Memory & map features
+
+```
+1. Memory Albums: group existing memories into named albums (e.g. "Goa Trip"), add a
+   tagging UI to existing memory items.
+2. Love Journey Map: use the existing milestones collection (lat/lng) with
+   google_maps_flutter or flutter_map to pin first meeting / first date / trips, tap a
+   pin to open the related memory.
+3. Monthly Recap: a Cloud Function on a schedule (1st of each month) aggregates the
+   previous month's memory/message/mood counts into a recap doc; show it as a simple
+   summary card in-app. No AI yet — that's Phase 6.
+```
+
+---
+
+## Phase 5 — Personalization & premium gating
+
+```
+1. Couple Themes: themes.json with color/asset bundles; free tier gets 2, rest gated
+   behind the RevenueCat `isPremium` entitlement (not a local flag).
+2. Home Screen Widget: use the home_widget package — show days-together, last mood, a
+   deep link back into the app. Android first; iOS needs a separate WidgetKit extension
+   target in Xcode — flag this as a native step, not pure-Dart.
+3. Love Vault: PIN-gated album. Encrypt files client-side (the `encrypt` package, AES,
+   key derived from the PIN via PBKDF2) BEFORE uploading to Firebase Storage — never
+   upload vault content unencrypted.
+4. Wire up RevenueCat: Free / Premium ₹99/mo / Lifetime ₹999 tiers, gate the premium
+   pieces of Phases 3–5 behind entitlement checks.
+```
+
+---
+
+## Phase 6 — AI features (via your Replit backend — never an AI key inside the Flutter app)
+
+```
+Add an AI screen that calls these endpoints on the existing Replit backend. Do not call
+OpenAI/Anthropic directly from Flutter — no AI API keys in client code, ever:
+
+POST /api/ai/love-letter { occasion, tone } → generated text
+POST /api/ai/caption { memoryId } → suggested caption
+POST /api/ai/monthly-recap { coupleId } → AI-written summary of that month
+
+Show a loading state, let the user edit AI output before saving/sending, and gate this
+screen behind the premium entitlement.
+```
+
+---
+
+## Build discipline (repeat to your agent every session)
+
+```
+Don't refactor or rename collections/fields from earlier phases. Add new fields, don't
+repurpose old ones. If a new feature needs data from an older collection, read it — don't
+restructure it. Add a short CHANGELOG.md entry after each phase describing what was added.
+```

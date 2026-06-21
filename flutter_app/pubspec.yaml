@@ -1,0 +1,51 @@
+name: heartsync
+description: A private couple space for long-distance relationships.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.9.0
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.5.4
+  firebase_storage: ^12.3.7
+  firebase_messaging: ^15.1.6
+  firebase_analytics: ^11.3.6
+
+  # State management
+  provider: ^6.1.2
+
+  # Network & HTTP
+  http: ^1.2.2
+
+  # Media
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+
+  # Encryption (Love Vault)
+  encrypt: ^5.0.3
+  crypto: ^3.0.5
+  pointycastle: ^3.9.1
+
+  # Utils
+  intl: ^0.19.0
+  uuid: ^4.5.1
+  shared_preferences: ^2.3.5
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/data/
