@@ -11,6 +11,11 @@ import AIUsage from './pages/AIUsage';
 import AIPlayground from './pages/AIPlayground';
 import Notifications from './pages/Notifications';
 import FeatureFlags from './pages/FeatureFlags';
+import Themes from './pages/Themes';
+import Support from './pages/Support';
+import Analytics from './pages/Analytics';
+import AuditLog from './pages/AuditLog';
+import GDPR from './pages/GDPR';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -33,6 +38,11 @@ function AppRoutes() {
         <Route path="ai-playground" element={<AIPlayground />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="flags" element={<FeatureFlags />} />
+        <Route path="themes" element={<Themes />} />
+        <Route path="support" element={<Support />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="audit" element={<AuditLog />} />
+        <Route path="gdpr" element={<GDPR />} />
       </Route>
     </Routes>
   );

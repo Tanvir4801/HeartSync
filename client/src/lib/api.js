@@ -23,10 +23,7 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -54,7 +51,10 @@ export const api = {
     update: (id, status) => request(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   },
   notifications: {
-    broadcast: (title, body) => request('/notifications/broadcast', { method: 'POST', body: JSON.stringify({ title, body }) }),
+    broadcast: (title, body, opts = {}) => request('/notifications/broadcast', { method: 'POST', body: JSON.stringify({ title, body, ...opts }) }),
+    scheduled: () => request('/notifications/scheduled'),
+    cancelScheduled: (id) => request(`/notifications/scheduled/${id}`, { method: 'DELETE' }),
+    history: () => request('/notifications/history'),
   },
   flags: {
     list: () => request('/flags'),
@@ -67,5 +67,32 @@ export const api = {
     loveLetter: (occasion, tone, coupleId) => request('/ai/love-letter', { method: 'POST', body: JSON.stringify({ occasion, tone, coupleId }) }),
     caption: (description, coupleId) => request('/ai/caption', { method: 'POST', body: JSON.stringify({ description, coupleId }) }),
     monthlyRecap: (coupleId, month, year, stats) => request('/ai/monthly-recap', { method: 'POST', body: JSON.stringify({ coupleId, month, year, stats }) }),
+    generate: (type, tone, context, coupleId) => request('/ai/generate', { method: 'POST', body: JSON.stringify({ type, tone, context, coupleId }) }),
+  },
+  themes: {
+    list: () => request('/themes/themes'),
+    save: (theme) => request('/themes/themes', { method: 'POST', body: JSON.stringify(theme) }),
+    delete: (id) => request(`/themes/themes/${id}`, { method: 'DELETE' }),
+    badges: () => request('/themes/badges'),
+    saveBadge: (badge) => request('/themes/badges', { method: 'POST', body: JSON.stringify(badge) }),
+    deleteBadge: (id) => request(`/themes/badges/${id}`, { method: 'DELETE' }),
+  },
+  support: {
+    tickets: (status) => request(`/support/tickets${status && status !== 'all' ? `?status=${status}` : ''}`),
+    reply: (id, message) => request(`/support/tickets/${id}/reply`, { method: 'POST', body: JSON.stringify({ message }) }),
+    setStatus: (id, status) => request(`/support/tickets/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  },
+  analytics: {
+    funnel: () => request('/analytics/funnel'),
+    retention: () => request('/analytics/retention'),
+  },
+  audit: {
+    list: (action) => request(`/audit${action ? `?action=${action}` : ''}`),
+    log: (action, targetCoupleId, detail) => request('/audit', { method: 'POST', body: JSON.stringify({ action, targetCoupleId, detail }) }),
+  },
+  gdpr: {
+    requests: (status) => request(`/gdpr/requests${status && status !== 'all' ? `?status=${status}` : ''}`),
+    export: (id) => request(`/gdpr/requests/${id}/export`, { method: 'POST' }),
+    delete: (id) => request(`/gdpr/requests/${id}/delete`, { method: 'POST' }),
   },
 };

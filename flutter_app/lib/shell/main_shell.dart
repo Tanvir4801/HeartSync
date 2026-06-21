@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/theme.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/memories/screens/memory_timeline_screen.dart';
 import '../features/chat/screens/chat_screen.dart';
@@ -6,6 +7,9 @@ import '../features/notes/screens/notes_screen.dart';
 import '../features/gamification/screens/challenges_screen.dart';
 import '../features/ai/screens/ai_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+import '../features/milestones/screens/milestones_screen.dart';
+import '../features/vault/screens/vault_screen.dart';
+import '../features/settings/screens/settings_screen.dart';
 
 class MainShell extends StatefulWidget {
   final String coupleId;
@@ -23,11 +27,16 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _items = [
-      _NavItem(label: 'Home', icon: Icons.favorite_outline, activeIcon: Icons.favorite, builder: () => HomeScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'Memories', icon: Icons.photo_library_outlined, activeIcon: Icons.photo_library, builder: () => MemoryTimelineScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'Chat', icon: Icons.chat_bubble_outline, activeIcon: Icons.chat_bubble, builder: () => ChatScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'Notes', icon: Icons.mail_outline, activeIcon: Icons.mail, builder: () => NotesScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'More', icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view, builder: () => _MoreScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Home', icon: Icons.favorite_outline, activeIcon: Icons.favorite,
+        builder: () => HomeScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Memories', icon: Icons.photo_library_outlined, activeIcon: Icons.photo_library,
+        builder: () => MemoryTimelineScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Chat', icon: Icons.chat_bubble_outline, activeIcon: Icons.chat_bubble,
+        builder: () => ChatScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Notes', icon: Icons.mail_outline, activeIcon: Icons.mail,
+        builder: () => NotesScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'More', icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view,
+        builder: () => _MoreScreen(coupleId: widget.coupleId)),
     ];
   }
 
@@ -70,14 +79,23 @@ class _MoreScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _MoreCard(icon: Icons.emoji_events_outlined, title: 'Challenges & XP', subtitle: 'Complete daily challenges together', color: const Color(0xFFFACC15),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChallengesScreen(coupleId: coupleId)))),
+          _MoreCard(icon: Icons.auto_stories_outlined, title: 'Our Story', subtitle: 'Milestones, firsts, and special places', color: AppTheme.dawnAmber,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MilestonesScreen(coupleId: coupleId)))),
           const SizedBox(height: 12),
-          _MoreCard(icon: Icons.auto_awesome, title: 'AI Features', subtitle: 'Love letters, captions & monthly recap', color: const Color(0xFFE05C7E),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiScreen(coupleId: coupleId)))),
+          _MoreCard(icon: Icons.emoji_events_outlined, title: 'Challenges & XP', subtitle: 'Complete daily challenges together', color: AppTheme.warning,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChallengesScreen(coupleId: coupleId)))),
           const SizedBox(height: 12),
-          _MoreCard(icon: Icons.person_outline, title: 'Profile & Settings', subtitle: 'Account, couple info, stats', color: const Color(0xFF818CF8),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(coupleId: coupleId)))),
+          _MoreCard(icon: Icons.auto_awesome_outlined, title: 'AI Features', subtitle: 'Love letters, captions & monthly recap', color: AppTheme.horizonRose,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiScreen(coupleId: coupleId)))),
+          const SizedBox(height: 12),
+          _MoreCard(icon: Icons.lock_outline, title: 'Love Vault', subtitle: 'PIN-protected private space', color: AppTheme.lavenderDusk,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VaultScreen()))),
+          const SizedBox(height: 12),
+          _MoreCard(icon: Icons.person_outline, title: 'Profile', subtitle: 'Account, couple info, stats', color: AppTheme.lavenderDusk,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(coupleId: coupleId)))),
+          const SizedBox(height: 12),
+          _MoreCard(icon: Icons.settings_outlined, title: 'Settings', subtitle: 'Preferences, support, privacy', color: AppTheme.textMuted,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
         ],
       ),
     );
@@ -100,12 +118,12 @@ class _MoreCard extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           width: 48, height: 48,
-          decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: color, size: 24),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withValues(alpha: 0.25))),
+          child: Icon(icon, color: color, size: 22),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: const TextStyle(color: Color(0xFF8888A8), fontSize: 12)),
-        trailing: const Icon(Icons.chevron_right, color: Color(0xFF8888A8)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Text(subtitle, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted, size: 18),
       ),
     );
   }

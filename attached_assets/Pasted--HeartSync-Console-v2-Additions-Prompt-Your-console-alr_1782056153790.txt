@@ -1,0 +1,70 @@
+# HeartSync Console — v2 Additions Prompt
+
+Your console already has Login, Dashboard, Couples, Moderation, Revenue, AI Usage, AI
+Playground, Notifications, and Feature Flags. This adds the sections needed to manage
+the Phase 7+ Flutter features, plus a few operational gaps every admin console needs
+once real users show up.
+
+Paste these into the same Replit project, one section per agent turn.
+
+---
+
+## 9. Theme & content management
+
+```
+Add a section to manage the 4 Couple Themes and the Relationship Badges icon set
+shipped in Flutter Phase 7. Store theme token sets and badge metadata in
+admin/themes/{themeId} and admin/badges/{badgeId}. Build a simple form to add/edit a
+theme (name, color tokens, free-or-premium) and badge (name, icon, unlock condition
+description) without needing an app update — the Flutter app reads these collections
+directly.
+```
+
+## 10. Notification segmentation & scheduling
+
+```
+Upgrade the existing broadcast-to-all-users notification form: add targeting by tier
+(free/premium), by inactivity (couples with no activity in the last N days — use the
+existing admin/stats aggregation to find these), and a "send at" scheduled time instead
+of only immediate sends. Store scheduled sends in admin/scheduled_notifications/{id} and
+add a Cloud Function on a timer that checks for due sends.
+```
+
+## 11. Support inbox
+
+```
+Add a `support_tickets` collection (coupleId, message, status, createdAt) — this needs a
+small "Contact support" form added in the Flutter app's settings screen too. Build a
+simple inbox view here: open/closed tickets, reply field that writes a response doc the
+Flutter app can show back to the user, mark-as-resolved action.
+```
+
+## 12. Funnel & conversion analytics
+
+```
+Add a funnel chart: signup → couple-linked (joined via invite code) → first memory added
+→ premium conversion, using counts from the existing daily admin/stats aggregation.
+Shows where couples drop off, week over week.
+```
+
+## 13. Admin roles & audit log
+
+```
+Extend the isAdmin custom claim to support roles: `admin` (full access) and `support`
+(couples + moderation + support inbox only, no revenue/AI cost/feature flags). Gate
+routes by role in the existing middleware. Log every privileged action (suspend, grant
+premium, remove content, toggle a flag) to admin/audit_log/{id}: who, what, when, on
+which couple — this matters the moment you're not the only person with console access.
+```
+
+## 14. GDPR / data request queue
+
+```
+Formalize the "export couple data" action already built in section 3 into a tracked
+queue: admin/data_requests/{id}: coupleId, type (export/deletion), status, requestedAt,
+completedAt. A couple should be able to request this from inside the Flutter app
+(settings screen → "Request my data" / "Delete my account"), which writes here; this
+page is where you fulfill and close out each request, with the deletion path actually
+removing the couple's Firestore docs and Storage files via firebase-admin, not just
+flagging status=suspended.
+```

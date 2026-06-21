@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme.dart';
 import '../repository/ai_repository.dart';
 
 class AiScreen extends StatefulWidget {
@@ -23,19 +24,19 @@ class _AiScreenState extends State<AiScreen> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Features ✨'),
+        title: const Text('AI Features'),
         bottom: TabBar(
           controller: _tabCtrl,
-          indicatorColor: const Color(0xFFE05C7E),
-          labelColor: const Color(0xFFE05C7E),
-          unselectedLabelColor: const Color(0xFF8888A8),
-          tabs: const [Tab(text: 'Love Letter'), Tab(text: 'Caption'), Tab(text: 'Recap')],
+          indicatorColor: AppTheme.dawnAmber,
+          labelColor: AppTheme.dawnAmber,
+          unselectedLabelColor: AppTheme.textMuted,
+          tabs: const [Tab(text: 'Generate'), Tab(text: 'Captions'), Tab(text: 'Recap')],
         ),
       ),
       body: TabBarView(
         controller: _tabCtrl,
         children: [
-          _LoveLetterTab(coupleId: widget.coupleId),
+          _GenerateTab(coupleId: widget.coupleId),
           _CaptionTab(coupleId: widget.coupleId),
           _RecapTab(coupleId: widget.coupleId),
         ],
@@ -54,50 +55,61 @@ class _AiResultBox extends StatelessWidget {
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF23232F),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2E2E3E)),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Generated', style: TextStyle(fontSize: 12, color: Color(0xFF8888A8))),
+          const Text('Generated', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
           const Spacer(),
           GestureDetector(
-            onTap: () { Clipboard.setData(ClipboardData(text: text)); },
-            child: const Icon(Icons.copy, size: 16, color: Color(0xFF8888A8)),
+            onTap: () => Clipboard.setData(ClipboardData(text: text)),
+            child: const Icon(Icons.copy, size: 16, color: AppTheme.textMuted),
           ),
         ]),
-        const Divider(color: Color(0xFF2E2E3E)),
+        const Divider(color: AppTheme.border),
         SelectableText(text, style: const TextStyle(fontSize: 14, height: 1.7)),
       ]),
     );
   }
 }
 
-class _LoveLetterTab extends StatefulWidget {
+class _GenerateTab extends StatefulWidget {
   final String coupleId;
-  const _LoveLetterTab({required this.coupleId});
+  const _GenerateTab({required this.coupleId});
   @override
-  State<_LoveLetterTab> createState() => _LoveLetterTabState();
+  State<_GenerateTab> createState() => _GenerateTabState();
 }
 
-class _LoveLetterTabState extends State<_LoveLetterTab> {
-  final _occasionCtrl = TextEditingController();
+class _GenerateTabState extends State<_GenerateTab> {
+  final _repo = AiRepository();
+  String _type = 'love-letter';
   String _tone = 'romantic';
+  final _contextCtrl = TextEditingController();
   String? _result;
   bool _loading = false;
-  final _repo = AiRepository();
 
-  final _tones = ['romantic', 'playful', 'heartfelt', 'poetic', 'funny'];
+  static const _types = [
+    ('love-letter', 'Love Letter', '💌'),
+    ('anniversary', 'Anniversary', '🎉'),
+    ('birthday', 'Birthday', '🎂'),
+    ('apology', 'Apology', '🙏'),
+    ('poem', 'Poem', '📜'),
+    ('good-morning', 'Good Morning', '🌅'),
+    ('good-night', 'Good Night', '🌙'),
+    ('miss-you', 'Miss You', '💭'),
+  ];
+
+  static const _tones = ['romantic', 'playful', 'sincere', 'poetic', 'warm', 'tender', 'heartfelt', 'funny'];
 
   Future<void> _generate() async {
-    if (_occasionCtrl.text.trim().isEmpty) return;
     setState(() { _loading = true; _result = null; });
     try {
-      final text = await _repo.generateLoveLetter(occasion: _occasionCtrl.text.trim(), tone: _tone, coupleId: widget.coupleId);
+      final text = await _repo.generate(widget.coupleId, _type, _tone, _contextCtrl.text.trim().isEmpty ? null : _contextCtrl.text.trim());
       setState(() => _result = text);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFFF87171)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -108,26 +120,49 @@ class _LoveLetterTabState extends State<_LoveLetterTab> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        TextField(controller: _occasionCtrl, decoration: const InputDecoration(labelText: 'Occasion', hintText: 'e.g. anniversary, missing you…')),
+        const Text('Type', style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.04)),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: _types.map((t) {
+          final sel = _type == t.$1;
+          return GestureDetector(
+            onTap: () => setState(() => _type = t.$1),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: sel ? AppTheme.dawnAmber.withValues(alpha: 0.12) : AppTheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: sel ? AppTheme.dawnAmber : AppTheme.border),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(t.$3, style: const TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Text(t.$2, style: TextStyle(fontSize: 12, color: sel ? AppTheme.dawnAmber : AppTheme.textMuted, fontWeight: sel ? FontWeight.w600 : FontWeight.w400)),
+              ]),
+            ),
+          );
+        }).toList()),
         const SizedBox(height: 16),
-        const Text('Tone', style: TextStyle(fontSize: 13, color: Color(0xFF8888A8))),
+        const Text('Tone', style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.04)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8, runSpacing: 8,
           children: _tones.map((t) => ChoiceChip(
-            label: Text(t, style: TextStyle(color: _tone == t ? const Color(0xFFE05C7E) : const Color(0xFF8888A8))),
+            label: Text(t, style: TextStyle(fontSize: 12, color: _tone == t ? AppTheme.horizonRose : AppTheme.textMuted)),
             selected: _tone == t,
             onSelected: (_) => setState(() => _tone = t),
-            backgroundColor: const Color(0xFF23232F),
-            selectedColor: const Color(0xFFE05C7E).withOpacity(0.15),
-            side: BorderSide(color: _tone == t ? const Color(0xFFE05C7E) : const Color(0xFF2E2E3E)),
+            backgroundColor: AppTheme.surface,
+            selectedColor: AppTheme.horizonRose.withValues(alpha: 0.12),
+            side: BorderSide(color: _tone == t ? AppTheme.horizonRose : AppTheme.border),
           )).toList(),
         ),
+        const SizedBox(height: 16),
+        TextField(controller: _contextCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Context (optional)', hintText: 'e.g. our 2-year anniversary, you love sunsets...')),
         const SizedBox(height: 20),
         SizedBox(width: double.infinity, child: ElevatedButton.icon(
           onPressed: _loading ? null : _generate,
           icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('✨'),
-          label: Text(_loading ? 'Generating…' : 'Generate Love Letter'),
+          label: Text(_loading ? 'Generating…' : 'Generate'),
         )),
         if (_result != null) _AiResultBox(text: _result!),
       ]),
@@ -154,7 +189,7 @@ class _CaptionTabState extends State<_CaptionTab> {
       final caps = await _repo.generateCaptions(description: _descCtrl.text.trim(), coupleId: widget.coupleId);
       setState(() => _captions = caps);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFFF87171)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -165,7 +200,7 @@ class _CaptionTabState extends State<_CaptionTab> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        TextField(controller: _descCtrl, decoration: const InputDecoration(labelText: 'Describe the memory (optional)', hintText: 'e.g. sunset photo from our Goa trip')),
+        TextField(controller: _descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: 'Describe the memory (optional)', hintText: 'e.g. sunset photo from our Goa trip')),
         const SizedBox(height: 20),
         SizedBox(width: double.infinity, child: ElevatedButton.icon(
           onPressed: _loading ? null : _generate,
@@ -175,8 +210,12 @@ class _CaptionTabState extends State<_CaptionTab> {
         if (_captions != null) ...List.generate(_captions!.length, (i) => Container(
           margin: const EdgeInsets.only(top: 10),
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: const Color(0xFF23232F), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2E2E3E))),
-          child: Text(_captions![i], style: const TextStyle(fontSize: 14, height: 1.5)),
+          decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.border)),
+          child: Row(children: [
+            Text('${i + 1}.', style: const TextStyle(color: AppTheme.dawnAmber, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 10),
+            Expanded(child: Text(_captions![i], style: const TextStyle(fontSize: 14, height: 1.5))),
+          ]),
         )),
       ]),
     );
@@ -201,7 +240,7 @@ class _RecapTabState extends State<_RecapTab> {
       final rec = await _repo.generateMonthlyRecap(coupleId: widget.coupleId, month: _currentMonth());
       setState(() => _recap = rec);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFFF87171)));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -217,9 +256,12 @@ class _RecapTabState extends State<_RecapTab> {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${_currentMonth()} Recap', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppTheme.lavenderDusk.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.lavenderDusk.withValues(alpha: 0.25))),
+          child: const Text('This is an AI-generated reflection based on your activity. It is not an assessment of your relationship.', style: TextStyle(fontSize: 12, color: AppTheme.lavenderDusk, height: 1.5))),
+        const SizedBox(height: 20),
+        Text('${_currentMonth()} Recap', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Fraunces')),
         const SizedBox(height: 8),
-        const Text('Generate an AI summary of this month\'s moments together.', style: TextStyle(color: Color(0xFF8888A8))),
+        const Text('AI summary of this month\'s moments together.', style: TextStyle(color: AppTheme.textMuted)),
         const SizedBox(height: 24),
         SizedBox(width: double.infinity, child: ElevatedButton.icon(
           onPressed: _loading ? null : _generate,

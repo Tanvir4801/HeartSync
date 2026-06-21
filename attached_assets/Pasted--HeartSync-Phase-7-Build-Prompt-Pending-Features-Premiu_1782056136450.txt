@@ -1,0 +1,172 @@
+# HeartSync — Phase 7+ Build Prompt (Pending Features + Premium Design System)
+
+Phases 0–6 are done. This continues the same project — paste the **Design System**
+block once into a new agent session alongside your original Session Context, then work
+through Phases 7–15 in order, same rule as before: one phase per agent turn, same
+project, don't restructure earlier collections.
+
+---
+
+## Design System — "Horizon Line" (paste once, applies to every phase below)
+
+```
+Apply a cohesive visual identity called "Horizon Line" across HeartSync. The concept:
+two people in two places, two local times, one line of light between them. Avoid the
+generic "pink hearts on white" love-app look — hearts are an accent, not the identity.
+
+Color tokens (use these exact values, dark-mode-first since usage peaks at night):
+- Dusk Indigo #1C1B33 — primary background (dark mode)
+- Ink #121022 — primary text on light surfaces
+- Mist White #F3F1F6 — light-mode surface / cards that hold photos (cool, not cream)
+- Dawn Amber #F2A65A — primary warm accent
+- Horizon Rose #E8927C — secondary accent, "where dusk meets dawn"
+- Lavender Dusk #9B8AC4 — tertiary accent for premium/chat highlights
+
+Typography:
+- Display face: Fraunces — used sparingly, for big numbers (days-together count,
+  milestone titles, "Our Story" headers). Never for body text.
+- Body face: Inter — everyday UI text, high legibility.
+- Utility/mono face: JetBrains Mono — timestamps, countdowns, invite codes, the two
+  local-time clocks. Ties the "two timezones" concept into real data, not decoration.
+
+Signature element — the Horizon Line itself: a thin gradient line (indigo → rose →
+amber) that appears in exactly these places, nowhere else:
+1. Home screen: two small local-time clocks (one per partner, using their device
+   timezone), joined by this gradient line — the line's color mix literally shifts with
+   how much their two days currently overlap.
+2. The Love Battery meter — replace any circular/linear default gauge with this same
+   horizon-line arc filling left to right.
+3. Screen-transition loading state — a thin horizon line sweeps across on navigation,
+   replacing a generic spinner.
+
+Retrofit every existing Phase 0–6 screen to use these tokens — don't leave default
+Material colors anywhere. Keep the rest of each screen quiet and disciplined; the
+horizon line is the one bold element, everything else (spacing, cards, buttons) stays
+restrained so it doesn't compete with it.
+```
+
+---
+
+## Phase 7 — Visual identity retrofit + personalization
+
+```
+1. Apply the Horizon Line design system (above) to all existing screens.
+2. Couple Themes: ship 4 token-swap variants — "Horizon" (default), "Midnight Bloom",
+   "Golden Hour", "Northern Lights" — same components, only colors/fonts swap per theme.
+   Free tier: Horizon only. Premium: all 4.
+3. Custom Avatars: simple illustrated avatar builder (skin tone, hair, one accessory),
+   stored at couples/{id} members map, shown in chat and profile.
+4. Relationship Badges: small icon set unlocked at XP/streak thresholds you already
+   track (e.g. "30-Day Streak", "100 Memories"), shown on the profile screen.
+5. Profile Customization: couple-space cover banner, partner nicknames.
+```
+
+## Phase 8 — Relationship tools
+
+```
+1. Relationship Milestones: a dedicated "Our Story" screen — user-added dated events
+   (first kiss, met parents, moved in), distinct from the raw memory timeline.
+2. Countdown Events: create a countdown to next visit/anniversary/trip; live day/hour
+   counter, optional push reminder as the date nears.
+3. Bucket List + Dream Travel List: simple shared checklists either partner can add to
+   and check off. Dream destinations get a lat/lng for later use on the map (Phase 10).
+4. Shared Goals: a small set of joint goals (e.g. "save for a trip") with a progress bar
+   either partner can update.
+5. Love Quiz: short multiple-choice quiz about each other; reveal a compatibility
+   percentage once both have answered — this IS your "Couple Compatibility Score"
+   feature, don't build it twice.
+```
+
+## Phase 9 — Rich interactions
+
+```
+1. Touch Together: both partners hold a heart shape at once — use a real-time
+   couples/{id}/touchSession flag, trigger a synced animation if both taps land within
+   ~2 seconds of each other.
+2. Live Love Status: a freeform one-line status ("missing you", "at work") shown at the
+   top of chat — a richer companion to the existing mood emoji, not a replacement.
+3. Couple Polls: quick two-option polls either partner creates; result reveals once both
+   have voted.
+4. Emoji Reactions: tap-and-hold reactions on chat messages and memories, stored as a
+   reactions map on the doc.
+5. Shared Journal + Gratitude Notes: a longer-form joint diary (separate from chat) plus
+   a lightweight daily "one thing I'm grateful for about you" prompt.
+6. Secret Messages + Surprise Messages: reuse the existing time-locked notes
+   infrastructure — secret = blurred until tapped, surprise = delivered at a random time
+   within the day instead of instantly. Don't build new backend for these.
+7. Confirm voice notes (record/playback/waveform) are fully wired in chat if not already.
+8. Online Status: presence indicator in the chat header via Realtime Database presence.
+9. While here, add two one-line variants on the existing Virtual Hug: "Miss You" (same
+   button, different copy/icon) and "Emergency Hug" (same flow, high-priority FCM, a
+   more urgent animation, for "I really need you right now" moments).
+```
+
+## Phase 10 — Map & geo
+
+```
+1. Love Journey Map: full-screen map pinning milestones (reuse Phase 8's lat/lng data),
+   custom map style using the Horizon palette — not default Google Maps blue.
+2. First Meeting / First Date / Trip / Favorite Places: implement as a `category` enum
+   on the existing milestone doc with different pin icons per category — don't create
+   separate collections for these.
+```
+
+## Phase 11 — Memory upgrades
+
+```
+1. Video Memories: extend the existing upload flow to accept video, auto-generate a
+   thumbnail, play inline.
+2. Memory Albums, Tags, Search, Highlights: album grouping, tag chips, a search bar
+   filtering by tag/caption/date, and a "Highlights" reel auto-pulling favorited +
+   most-reacted memories into a slideshow.
+3. Love Story Timeline: an alternate narrative view of the same memory data —
+   full-width story cards in date order, Fraunces display type for date headers,
+   distinct from the existing grid view (don't duplicate the data, just the view).
+```
+
+## Phase 12 — Security & vault
+
+```
+1. PIN Lock: app-level PIN/biometric lock (local_auth package) — user's choice in
+   settings to gate the whole app or just the Vault.
+2. Love Vault + Hidden Albums: PIN-gated, client-side encrypted before upload (carried
+   over from the original spec). Hidden Albums never appear outside the vault, including
+   in search results.
+3. Be precise in the UI copy about what "Secure Cloud Backup" and "End-to-End Privacy"
+   actually mean: Vault contents are client-side encrypted; regular chat/memories are
+   protected by Firestore security rules, NOT end-to-end encrypted. Don't market a
+   privacy guarantee the architecture doesn't deliver.
+```
+
+## Phase 13 — More AI
+
+```
+1. Replace single-purpose AI endpoints with one flexible route:
+   POST /api/ai/generate { type: "anniversary"|"birthday"|"apology"|"poem", tone, context }
+   — one route, different server-side prompt templates per type. Don't add a new
+   endpoint per wish type.
+2. AI Relationship Insights: a monthly AI-written reflection using that month's
+   aggregated activity (message count, mood trend, memories added). Label it clearly in
+   the UI as a generated reflection, not an assessment of the relationship.
+```
+
+## Phase 14 — Premium enforcement & polish
+
+```
+1. Enforce Free-tier memory/storage limits server-side (a Cloud Function checks count on
+   write) — a client-side-only check is trivially bypassed.
+2. Gate HD photo/video backup, Premium Themes, Advanced Widgets, and Exclusive Badges
+   behind the RevenueCat entitlement, consistent with the existing Phase 5 gating.
+```
+
+## Phase 15 — Future, lower priority (separate projects, not quick phases)
+
+```
+Watch Together, Listen Together, Couple Games, Voice/Video Calling, Gift Store + flower
+delivery affiliate, Couple Community, Anniversary Planner, Smart Gift Suggestions.
+
+Flag honestly: calling needs real WebRTC infrastructure, and Community needs its own
+moderation surface — these are each their own project, not an afternoon's phase. Build
+these only after Phases 7–14 are live and you have real usage data telling you which is
+worth the investment.
+```
