@@ -18,6 +18,7 @@ initFirebase();
 
 const adminMiddleware = require('./middleware/adminAuth');
 
+app.use('/api/config', require('./routes/config'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/stats', adminMiddleware, require('./routes/stats'));
 app.use('/api/couples', adminMiddleware, require('./routes/couples'));
@@ -25,6 +26,7 @@ app.use('/api/reports', adminMiddleware, require('./routes/reports'));
 app.use('/api/notifications', adminMiddleware, require('./routes/notifications'));
 app.use('/api/flags', adminMiddleware, require('./routes/flags'));
 app.use('/api/ai-usage', adminMiddleware, require('./routes/aiUsage'));
+app.use('/api/ai', adminMiddleware, require('./routes/ai'));
 app.use('/api/webhooks/revenuecat', require('./routes/revenuecat'));
 
 app.use((err, req, res, next) => {

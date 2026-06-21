@@ -1,0 +1,125 @@
+# HeartSync Console — Admin Dashboard Build Prompt (for Replit)
+
+This is a SEPARATE Replit project from the Flutter app — a web-only internal dashboard
+for you (the founder) to manage the same Firebase project that powers the app. Couples
+never see this. Choose "Web app" (not "Mobile app") when starting the Replit project.
+
+---
+
+## Starting prompt (paste into a new Replit project)
+
+```
+Build "HeartSync Console", an internal admin dashboard web app.
+
+Stack: Node.js + Express backend, React (Vite) frontend, firebase-admin SDK on the
+server only.
+
+This connects to an EXISTING Firebase project called heartsync-b4e9f — do not create a
+new Firebase project.
+
+I will add a Firebase service account JSON key as a Replit Secret called
+FIREBASE_SERVICE_ACCOUNT. Load it from that secret on the server. Never hardcode it,
+never send it to the frontend, never log it.
+
+All privileged reads/writes (viewing any couple's data, suspending an account, granting
+premium) must go through Express API routes using firebase-admin — never directly from
+the React frontend with a client SDK.
+
+Auth for this console: a single admin login (Firebase Auth email/password), then every
+API route checks the ID token's `isAdmin: true` custom claim server-side before doing
+anything. Build this claim check as one shared Express middleware, used on every route —
+not copy-pasted per route.
+```
+
+---
+
+## 1. Login + auth gate
+
+```
+Build the admin login screen: Firebase Auth email/password sign-in, then call a /api/me
+endpoint that verifies the ID token's isAdmin custom claim server-side. If false, show
+"not authorized" and block every other screen.
+```
+
+## 2. Overview dashboard
+
+```
+Show: total couples, total users, daily active couples (any action in the last 24h
+across memories/notes/moods/messages), new signups this week, churned couples
+(status=unlinked) this month. Have a scheduled Cloud Function write daily aggregates to
+admin/stats/{date}, and have this dashboard read from there — cheaper than live-
+aggregating on every page load.
+```
+
+## 3. Couple/user management
+
+```
+Searchable table of couples (by inviteCode, member email, or coupleId). Row detail view:
+both members, anniversary date, subscription tier, memory/message counts, last active
+date. Actions: manually grant Premium/Lifetime (writes couples/{id}/subscription),
+suspend the couple space (status=suspended — Firestore rules should treat this as
+read-only), and "export couple data" (zip their memories/notes metadata as JSON for
+support/legal requests).
+```
+
+## 4. Content moderation queue
+
+```
+Add a reports collection: reports/{id}: coupleId, contentType, contentId, reason,
+reportedAt, status. (Note: this needs a "report" action added somewhere in the Flutter
+app too, if/when you add anything shared or public.) Build a queue here: pending
+reports, preview the flagged content, actions to dismiss or remove the content (deletes
+the underlying Firestore doc/Storage file via firebase-admin) and optionally suspend the
+couple.
+```
+
+## 5. Subscription & revenue view
+
+```
+Add an Express route /api/webhooks/revenuecat that receives RevenueCat's webhook
+(verify the Authorization header secret RevenueCat sends — reject anything unverified),
+writes each event to admin/revenuecat_events, and updates the matching
+couples/{id}/subscription doc. Build a page listing recent events plus a simple
+revenue-over-time chart.
+```
+
+## 6. AI usage & cost monitor
+
+```
+The Flutter app's AI features (love letters, captions, recaps) call this same backend —
+log every call to admin/ai_usage (endpoint, coupleId, tokensUsed, costEstimate,
+timestamp) inside those /api/ai/* routes. Build a page showing total AI cost this month,
+cost per couple, and a per-day chart — this is your early-warning system if AI costs
+start outpacing your ₹99/mo subscription price.
+```
+
+## 7. Push notification broadcast
+
+```
+Simple form: title + body, sent via firebase-admin's messaging().sendToTopic
+('all-users') — have the Flutter app subscribe every device to an 'all-users' topic on
+launch. Use this for announcements only; per-couple notifications (hugs, note unlocks)
+should stay automatic via Cloud Functions, not manual.
+```
+
+## 8. Feature flags
+
+```
+A key-value table: admin/feature_flags/{flagName}: enabled, rolloutPercent, with a UI to
+toggle. Have the Flutter app read this collection on launch to decide whether to show
+in-development features (e.g. roll "Couple Polls" out to 10% of users before a full
+release) — avoids needing an app store update just to toggle a feature.
+```
+
+---
+
+## Security checklist — confirm all of these before this console ever goes live
+
+```
+- FIREBASE_SERVICE_ACCOUNT lives only in Replit Secrets — never committed to the repo.
+- Every /api/* route runs the isAdmin middleware — no exceptions.
+- The RevenueCat webhook route verifies RevenueCat's signature/secret header — otherwise
+  anyone could POST a fake "payment succeeded" event.
+- This console's URL is never linked from the Flutter app or shared publicly — bookmark
+  it yourself.
+```

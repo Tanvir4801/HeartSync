@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import {
   LayoutDashboard, Users, Flag, Bell, BarChart2,
-  ShieldAlert, Cpu, LogOut, Menu, X, Heart
+  ShieldAlert, Cpu, Sparkles, LogOut, Menu, X, Heart
 } from 'lucide-react';
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/reports', icon: ShieldAlert, label: 'Moderation' },
   { to: '/revenue', icon: BarChart2, label: 'Revenue' },
   { to: '/ai-usage', icon: Cpu, label: 'AI Usage' },
+  { to: '/ai-playground', icon: Sparkles, label: 'AI Playground' },
   { to: '/notifications', icon: Bell, label: 'Notifications' },
   { to: '/flags', icon: Flag, label: 'Feature Flags' },
 ];

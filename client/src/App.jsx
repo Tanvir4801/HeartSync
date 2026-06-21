@@ -8,6 +8,7 @@ import Couples from './pages/Couples';
 import Reports from './pages/Reports';
 import Revenue from './pages/Revenue';
 import AIUsage from './pages/AIUsage';
+import AIPlayground from './pages/AIPlayground';
 import Notifications from './pages/Notifications';
 import FeatureFlags from './pages/FeatureFlags';
 
@@ -29,6 +30,7 @@ function AppRoutes() {
         <Route path="reports" element={<Reports />} />
         <Route path="revenue" element={<Revenue />} />
         <Route path="ai-usage" element={<AIUsage />} />
+        <Route path="ai-playground" element={<AIPlayground />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="flags" element={<FeatureFlags />} />
       </Route>

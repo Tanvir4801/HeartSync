@@ -63,4 +63,9 @@ export const api = {
   aiUsage: {
     list: () => request('/ai-usage'),
   },
+  ai: {
+    loveLetter: (occasion, tone, coupleId) => request('/ai/love-letter', { method: 'POST', body: JSON.stringify({ occasion, tone, coupleId }) }),
+    caption: (description, coupleId) => request('/ai/caption', { method: 'POST', body: JSON.stringify({ description, coupleId }) }),
+    monthlyRecap: (coupleId, month, year, stats) => request('/ai/monthly-recap', { method: 'POST', body: JSON.stringify({ coupleId, month, year, stats }) }),
+  },
 };
