@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/theme.dart';
+import '../core/widgets/petal_bloom_route.dart';
 import '../features/home/screens/home_screen.dart';
-import '../features/memories/screens/memory_timeline_screen.dart';
+import '../features/garden/screens/garden_screen.dart';
 import '../features/chat/screens/chat_screen.dart';
 import '../features/notes/screens/notes_screen.dart';
-import '../features/gamification/screens/challenges_screen.dart';
-import '../features/ai/screens/ai_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
-import '../features/milestones/screens/milestones_screen.dart';
-import '../features/vault/screens/vault_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
-import '../features/garden/screens/garden_screen.dart';
-import '../features/gratitude/screens/gratitude_screen.dart';
-import '../features/dreamboard/screens/dreamboard_screen.dart';
-import '../features/connect/screens/connect_screen.dart';
+import '../features/vault/screens/vault_screen.dart';
 import '../features/themes/screens/theme_picker_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -27,7 +21,6 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> with SingleTickerProviderStateMixin {
   int _idx = 0;
   late AnimationController _navAnim;
-
   late final List<_NavItem> _items;
 
   @override
@@ -35,11 +28,11 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     super.initState();
     _navAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
     _items = [
-      _NavItem(label: 'Home',     icon: Icons.favorite_outline,      activeIcon: Icons.favorite,           builder: () => HomeScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'Memories', icon: Icons.photo_library_outlined, activeIcon: Icons.photo_library,      builder: () => MemoryTimelineScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'Chat',     icon: Icons.chat_bubble_outline,   activeIcon: Icons.chat_bubble,         builder: () => ChatScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'Notes',    icon: Icons.mail_outline,          activeIcon: Icons.mail,                builder: () => NotesScreen(coupleId: widget.coupleId)),
-      _NavItem(label: 'More',     icon: Icons.grid_view_outlined,    activeIcon: Icons.grid_view,           builder: () => _MoreScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Home',   icon: Icons.favorite_outline,     activeIcon: Icons.favorite,      builder: () => HomeScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Garden', icon: Icons.nature_outlined,       activeIcon: Icons.nature,        builder: () => GardenScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Chat',   icon: Icons.chat_bubble_outline,   activeIcon: Icons.chat_bubble,   builder: () => ChatScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'Notes',  icon: Icons.mail_outline,          activeIcon: Icons.mail,          builder: () => NotesScreen(coupleId: widget.coupleId)),
+      _NavItem(label: 'More',   icon: Icons.grid_view_outlined,    activeIcon: Icons.grid_view,     builder: () => _MoreScreen(coupleId: widget.coupleId)),
     ];
   }
 
@@ -75,10 +68,18 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
                   AnimatedScale(
                     scale: selected ? 1.15 : 1.0,
                     duration: const Duration(milliseconds: 200),
-                    child: Icon(_items[i].icon, size: 22, color: selected ? themeData.primary : AppTheme.textMuted),
+                    child: Icon(
+                      selected ? _items[i].activeIcon : _items[i].icon,
+                      size: 22,
+                      color: selected ? themeData.primary : AppTheme.textMuted,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(_items[i].label, style: TextStyle(fontSize: 10, color: selected ? themeData.primary : AppTheme.textMuted, fontWeight: selected ? FontWeight.w700 : FontWeight.w400)),
+                  Text(_items[i].label, style: TextStyle(
+                    fontSize: 10,
+                    color: selected ? themeData.primary : AppTheme.textMuted,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  )),
                   const SizedBox(height: 2),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -106,6 +107,8 @@ class _NavItem {
   const _NavItem({required this.label, required this.icon, required this.activeIcon, required this.builder});
 }
 
+// ─── More Screen (account & utility only) ────────────────────────────────────
+
 class _MoreScreen extends StatelessWidget {
   final String coupleId;
   const _MoreScreen({required this.coupleId});
@@ -115,55 +118,49 @@ class _MoreScreen extends StatelessWidget {
     final themeData = context.watch<ThemeProvider>().data;
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('More', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, fontFamily: 'Fraunces')),
-            Text('All features', style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w400)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: themeData.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10), border: Border.all(color: themeData.primary.withValues(alpha: 0.3))),
-              child: Icon(Icons.palette_outlined, color: themeData.primary, size: 18)),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ThemePickerScreen())),
-            tooltip: 'Change Theme',
-          ),
-          const SizedBox(width: 8),
-        ],
+        title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('More', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, fontFamily: 'Fraunces')),
+          Text('Account & settings', style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w400)),
+        ]),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _sectionHeader('💕 Us'),
-          _MoreCard(icon: Icons.auto_stories_outlined, title: 'Our Story', subtitle: 'Milestones, firsts, and special places', color: themeData.primary,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MilestonesScreen(coupleId: coupleId)))),
-          _MoreCard(icon: Icons.nature_outlined, title: 'Relationship Garden', subtitle: 'Grow your love together', color: const Color(0xFF4ADE80),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GardenScreen(coupleId: coupleId)))),
-          _MoreCard(icon: Icons.volunteer_activism_outlined, title: 'Gratitude Wall', subtitle: 'Daily appreciation messages', color: themeData.secondary,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GratitudeScreen(coupleId: coupleId)))),
-          _MoreCard(icon: Icons.dashboard_outlined, title: 'Dream Board', subtitle: 'Shared goals and future plans', color: AppTheme.lavenderDusk,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DreamBoardScreen(coupleId: coupleId)))),
+          _sectionHeader('👤 Account'),
+          _MoreCard(
+            icon: Icons.person_outline,
+            title: 'Profile',
+            subtitle: 'Stats, badges & couple info',
+            color: themeData.primary,
+            onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => ProfileScreen(coupleId: coupleId))),
+          ),
           const SizedBox(height: 16),
-          _sectionHeader('🎮 Games & Connect'),
-          _MoreCard(icon: Icons.forum_outlined, title: 'Connect', subtitle: 'Deep talks, fun questions & quiz', color: themeData.secondary,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ConnectScreen(coupleId: coupleId)))),
-          _MoreCard(icon: Icons.emoji_events_outlined, title: 'Challenges & XP', subtitle: 'Complete daily challenges together', color: AppTheme.warning,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChallengesScreen(coupleId: coupleId)))),
-          const SizedBox(height: 16),
-          _sectionHeader('✨ AI & Smart'),
-          _MoreCard(icon: Icons.auto_awesome_outlined, title: 'AI Features', subtitle: 'Love letters, captions & monthly recap', color: themeData.accent,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiScreen(coupleId: coupleId)))),
+          _sectionHeader('🎨 Appearance'),
+          _MoreCard(
+            icon: Icons.palette_outlined,
+            title: 'Theme',
+            subtitle: 'Change colors and mood',
+            color: themeData.secondary,
+            onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => const ThemePickerScreen())),
+          ),
           const SizedBox(height: 16),
           _sectionHeader('🔒 Private'),
-          _MoreCard(icon: Icons.lock_outline, title: 'Love Vault', subtitle: 'PIN-protected private space', color: AppTheme.lavenderDusk,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VaultScreen()))),
+          _MoreCard(
+            icon: Icons.lock_outline,
+            title: 'Love Vault',
+            subtitle: 'PIN-protected private space',
+            color: AppTheme.lavenderDusk,
+            onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => const VaultScreen())),
+          ),
           const SizedBox(height: 16),
-          _sectionHeader('👤 Account'),
-          _MoreCard(icon: Icons.person_outline, title: 'Profile', subtitle: 'Stats, badges & couple info', color: AppTheme.lavenderDusk,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(coupleId: coupleId)))),
-          _MoreCard(icon: Icons.settings_outlined, title: 'Settings', subtitle: 'Preferences, support & privacy', color: AppTheme.textMuted,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
+          _sectionHeader('⚙️ App'),
+          _MoreCard(
+            icon: Icons.settings_outlined,
+            title: 'Settings',
+            subtitle: 'Preferences, support & privacy',
+            color: AppTheme.textMuted,
+            onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => const SettingsScreen())),
+          ),
           const SizedBox(height: 40),
         ],
       ),
@@ -175,7 +172,6 @@ class _MoreScreen extends StatelessWidget {
     child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.textMuted, letterSpacing: 0.06)),
   );
 }
-
 
 class _MoreCard extends StatefulWidget {
   final IconData icon;
@@ -208,8 +204,15 @@ class _MoreCardState extends State<_MoreCard> {
             border: Border.all(color: AppTheme.border),
           ),
           child: Row(children: [
-            Container(width: 44, height: 44, decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: widget.color.withValues(alpha: 0.25))),
-              child: Icon(widget.icon, color: widget.color, size: 20)),
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: widget.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: widget.color.withValues(alpha: 0.25)),
+              ),
+              child: Icon(widget.icon, color: widget.color, size: 20),
+            ),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),

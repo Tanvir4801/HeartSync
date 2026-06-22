@@ -6,12 +6,12 @@ import '../../../core/theme.dart';
 import '../../../features/auth/repository/auth_repository.dart';
 
 const _badges = [
-  ('🔥', '7-Day Streak', 0, 7),
-  ('❤️‍🔥', '30-Day Streak', 0, 30),
-  ('📸', 'Memory Keeper', 100, 0),
-  ('🏆', '100 Memories', 500, 0),
-  ('⚡', 'Power Couple', 500, 0),
-  ('💎', 'Premium', 0, 0),
+  ('🔥', '7-Day Streak',   0,   7),
+  ('❤️‍🔥', '30-Day Streak', 0,  30),
+  ('📸', 'Memory Keeper', 100,   0),
+  ('🏆', '100 Memories',  500,   0),
+  ('⚡', 'Power Couple',  500,   0),
+  ('💎', 'Premium',         0,   0),
 ];
 
 class ProfileScreen extends StatelessWidget {
@@ -22,36 +22,60 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Profile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Fraunces')),
+          Text('Your couple space', style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w400)),
+        ]),
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirestoreService().coupleDoc(coupleId).snapshots(),
         builder: (_, snap) {
-          final data = snap.data?.data() as Map<String, dynamic>?;
-          final members = List<String>.from(data?['memberEmails'] ?? []);
-          final anniversary = (data?['anniversaryDate'] as Timestamp?)?.toDate();
-          final inviteCode = data?['inviteCode'] as String? ?? '';
-          final streak = data?['streak'] as int? ?? 0;
-          final xp = data?['xp'] as int? ?? 0;
-          final status = data?['status'] as String? ?? '';
-          final isPremium = data?['subscription'] == 'premium';
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFFE05C7E)));
+          }
+          if (snap.hasError) {
+            return Center(child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.error_outline, color: AppTheme.danger, size: 48),
+                const SizedBox(height: 16),
+                const Text('Could not load profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Text(snap.error.toString(), textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+              ]),
+            ));
+          }
+
+          final data = snap.data?.data() as Map<String, dynamic>? ?? {};
+          final memberEmails = List<String>.from(data['memberEmails'] ?? []);
+          final membersDisplay = memberEmails.isNotEmpty
+              ? memberEmails.join(', ')
+              : (data['members'] as List?)?.map((e) => e.toString().substring(0, 6) + '…').join(', ') ?? '—';
+          final anniversary = (data['anniversaryDate'] as Timestamp?)?.toDate();
+          final inviteCode = data['inviteCode'] as String? ?? '—';
+          final streak = data['streak'] as int? ?? 0;
+          final xp = data['xp'] as int? ?? 0;
+          final status = data['status'] as String? ?? 'active';
+          final isPremium = data['subscription'] == 'premium';
 
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              _CoverBanner(coupleId: coupleId, isPremium: isPremium),
+              _CoverBanner(isPremium: isPremium),
               const SizedBox(height: 20),
               _BadgeRow(xp: xp, streak: streak, isPremium: isPremium),
               const SizedBox(height: 20),
               _Section(title: 'Your Account', children: [
                 _InfoRow(icon: Icons.email_outlined, label: 'Email', value: user?.email ?? '—'),
-                _InfoRow(icon: Icons.badge_outlined, label: 'UID', value: user?.uid.substring(0, 8) ?? '—'),
+                _InfoRow(icon: Icons.badge_outlined, label: 'UID', value: '${user?.uid.substring(0, 8) ?? '—'}…'),
               ]),
               const SizedBox(height: 20),
               _Section(title: 'Couple Space', children: [
-                _InfoRow(icon: Icons.favorite_outline, label: 'Couple ID', value: coupleId.length > 8 ? coupleId.substring(0, 8) : coupleId),
-                _InfoRow(icon: Icons.key_outlined, label: 'Invite Code', value: inviteCode, mono: true),
-                _InfoRow(icon: Icons.calendar_today_outlined, label: 'Anniversary', value: anniversary != null ? '${anniversary.year}-${anniversary.month.toString().padLeft(2, '0')}-${anniversary.day.toString().padLeft(2, '0')}' : '—', mono: true),
-                _InfoRow(icon: Icons.people_outline, label: 'Members', value: members.join(', ')),
+                _InfoRow(icon: Icons.favorite_outline, label: 'Couple ID', value: '${coupleId.substring(0, 8)}…'),
+                _InfoRow(icon: Icons.key_outlined, label: 'Invite Code', value: inviteCode, mono: true, highlight: true),
+                _InfoRow(icon: Icons.calendar_today_outlined, label: 'Anniversary', value: anniversary != null ? '${anniversary.year}-${anniversary.month.toString().padLeft(2,'0')}-${anniversary.day.toString().padLeft(2,'0')}' : '—', mono: true),
+                _InfoRow(icon: Icons.people_outline, label: 'Members', value: membersDisplay),
                 _InfoRow(icon: Icons.circle_outlined, label: 'Status', value: status.isEmpty ? 'active' : status),
               ]),
               const SizedBox(height: 20),
@@ -71,6 +95,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 onPressed: () async { await AuthRepository().signOut(); },
               ),
+              const SizedBox(height: 40),
             ],
           );
         },
@@ -80,26 +105,23 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _CoverBanner extends StatelessWidget {
-  final String coupleId;
   final bool isPremium;
-  const _CoverBanner({required this.coupleId, required this.isPremium});
+  const _CoverBanner({required this.isPremium});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 120,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [AppTheme.duskIndigo, AppTheme.horizonRose, AppTheme.dawnAmber],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(colors: [AppTheme.duskIndigo, AppTheme.horizonRose, AppTheme.dawnAmber], begin: Alignment.centerLeft, end: Alignment.centerRight),
       ),
       child: Stack(children: [
-        Positioned(bottom: 0, left: 0, right: 0, child: Container(height: 2, decoration: const BoxDecoration(gradient: LinearGradient(colors: [AppTheme.duskIndigo, AppTheme.horizonRose, AppTheme.dawnAmber])))),
-        if (isPremium) Positioned(top: 10, right: 10, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(8)),
-          child: const Text('PREMIUM ✨', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.dawnAmber)))),
+        if (isPremium) Positioned(top: 12, right: 12, child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(8)),
+          child: const Text('PREMIUM ✨', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.dawnAmber)),
+        )),
         const Center(child: Text('💕', style: TextStyle(fontSize: 48))),
       ]),
     );
@@ -107,8 +129,7 @@ class _CoverBanner extends StatelessWidget {
 }
 
 class _BadgeRow extends StatelessWidget {
-  final int xp;
-  final int streak;
+  final int xp, streak;
   final bool isPremium;
   const _BadgeRow({required this.xp, required this.streak, required this.isPremium});
 
@@ -170,10 +191,9 @@ class _Section extends StatelessWidget {
 
 class _InfoRow extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final String value;
-  final bool mono;
-  const _InfoRow({required this.icon, required this.label, required this.value, this.mono = false});
+  final String label, value;
+  final bool mono, highlight;
+  const _InfoRow({required this.icon, required this.label, required this.value, this.mono = false, this.highlight = false});
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +204,12 @@ class _InfoRow extends StatelessWidget {
         const SizedBox(width: 12),
         Text(label, style: const TextStyle(fontSize: 14, color: AppTheme.textMuted)),
         const Spacer(),
-        Flexible(child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, fontFamily: mono ? 'JetBrains Mono' : null), textAlign: TextAlign.right, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(
+          value,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, fontFamily: mono ? 'JetBrains Mono' : null, color: highlight ? AppTheme.dawnAmber : AppTheme.textPrimary),
+          textAlign: TextAlign.right,
+          overflow: TextOverflow.ellipsis,
+        )),
       ]),
     );
   }

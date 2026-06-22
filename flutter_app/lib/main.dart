@@ -25,11 +25,62 @@ class HeartSyncApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<ThemeProvider>();
+    final td = context.watch<ThemeProvider>().data;
     return MaterialApp(
       title: 'HeartSync',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: td.background,
+        colorScheme: ColorScheme.dark(
+          primary: td.primary,
+          secondary: td.secondary,
+          surface: td.surface,
+          error: AppTheme.danger,
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: AppTheme.textPrimary,
+        ),
+        fontFamily: 'Inter',
+        appBarTheme: AppBarTheme(
+          backgroundColor: td.background,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          titleTextStyle: const TextStyle(color: AppTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w600, fontFamily: 'Inter'),
+          iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+        ),
+        cardTheme: CardThemeData(
+          color: td.surface,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: td.border)),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: td.surface2,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: td.border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: td.border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: td.primary, width: 2)),
+          hintStyle: const TextStyle(color: AppTheme.textMuted),
+          labelStyle: const TextStyle(color: AppTheme.textMuted),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: td.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 52),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+        ),
+        dividerTheme: DividerThemeData(color: td.border, thickness: 1),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: td.surface2,
+          contentTextStyle: const TextStyle(color: AppTheme.textPrimary),
+        ),
+      ),
       home: const _AuthGate(),
     );
   }
@@ -43,12 +94,8 @@ class _AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const _SplashScreen();
-        }
-        if (!snap.hasData || snap.data == null) {
-          return const LoginScreen();
-        }
+        if (snap.connectionState == ConnectionState.waiting) return const _SplashScreen();
+        if (!snap.hasData || snap.data == null) return const LoginScreen();
         return _CoupleGate(uid: snap.data!.uid, email: snap.data!.email ?? '');
       },
     );
@@ -80,19 +127,20 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
+    final td = context.watch<ThemeProvider>().data;
     return Scaffold(
-      backgroundColor: AppTheme.duskIndigo,
+      backgroundColor: td.background,
       body: Stack(children: [
-        const FloatingHearts(count: 12),
+        FloatingHearts(count: 12, colors: td.heartColors),
         Center(child: AnimatedBuilder(
           animation: _ctrl,
           builder: (_, __) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             ScaleTransition(scale: _scale, child: Container(
               width: 96, height: 96,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [AppTheme.dawnAmber, AppTheme.horizonRose]),
+                gradient: LinearGradient(colors: [td.primary, td.secondary]),
                 borderRadius: BorderRadius.circular(28),
-                boxShadow: [BoxShadow(color: AppTheme.dawnAmber.withValues(alpha: 0.4), blurRadius: 32, offset: const Offset(0, 8))],
+                boxShadow: [BoxShadow(color: td.primary.withValues(alpha: 0.4), blurRadius: 32, offset: const Offset(0, 8))],
               ),
               child: const Center(child: Text('❤️', style: TextStyle(fontSize: 48))),
             )),
@@ -102,10 +150,7 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
               const SizedBox(height: 6),
               const Text('Every Heartbeat, Together.', style: TextStyle(fontSize: 15, color: AppTheme.textMuted, letterSpacing: 0.04)),
               const SizedBox(height: 32),
-              SizedBox(width: 32, height: 32, child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: AppTheme.dawnAmber.withValues(alpha: 0.6),
-              )),
+              SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 2.5, color: td.primary.withValues(alpha: 0.6))),
             ])),
           ]),
         )),

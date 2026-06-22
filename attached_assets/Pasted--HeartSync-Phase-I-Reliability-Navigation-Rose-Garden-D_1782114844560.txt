@@ -1,0 +1,147 @@
+# HeartSync — Phase I+: Reliability, Navigation, "Rose Garden" Design v2, Engagement
+
+Fix Phase I before touching anything visual — decorating a screen that's silently
+failing just hides the bug better.
+
+---
+
+## Phase I — Fix loading & blank-screen bugs (do this first)
+
+```
+Audit every screen using StreamBuilder/FutureBuilder against Firestore (Home, Memories,
+Notes, Chat, Profile, Garden) and fix these specific issues:
+
+1. Every StreamBuilder/FutureBuilder must handle all three states explicitly — loading,
+   error, and empty-with-no-data. Never let the default/fallback branch render a bare
+   Container() or SizedBox() — that's what's producing the blank Home/Memories screens.
+   Show a friendly empty state (icon + short text + a CTA button) when there's no data,
+   and show a visible error message (not a silent failure) when the stream errors out.
+
+2. Add `.handleError()` or a try/catch around every Firestore stream/query and surface
+   the actual error text in debug builds (a SnackBar or inline banner is fine). Right
+   now a permission-denied error from the rules deployed last session is indistinguishable
+   from "still loading" — that's almost certainly why Notes spins forever.
+
+3. Check Firebase Console > Firestore > Indexes for any "missing index" errors logged
+   against your project. Any query combining .where() with .orderBy() on a different
+   field needs a composite index — Firestore will log the exact index to create with a
+   clickable link, but only if you're actually looking at the error, which you can't
+   right now because it's being swallowed. This is the single most common cause of "it
+   worked yesterday, now it just spins."
+
+4. Guard every couple-scoped query so it never runs with a null coupleId — if the user's
+   own couple link hasn't resolved yet, show a "Setting things up..." state instead of
+   firing a query against couples/null/....
+
+5. Fix the Profile screen specifically: Invite Code is rendering blank and Members
+   appears to be cut off/empty — verify these are reading the actual `inviteCode` and
+   `members` fields from the couple document and not a field name mismatch from an
+   earlier phase.
+
+Do not move to Phase J until Home, Memories, and Notes all load real or empty data
+correctly with a visible state for every condition — no more silent blank screens.
+```
+
+---
+
+## Phase J — Navigation & Home redesign
+
+```
+Current nav: Home / Memories / Chat / Notes / More. The "More" screen is a flat settings-
+style list, which is why finding Garden, Our Story, Gratitude Wall, etc. feels like a
+chore. Five tabs is the practical limit for a bottom nav before it gets cramped, so don't
+just add more tabs — restructure what's IN them:
+
+1. Replace the Memories tab with Garden. Garden already aggregates memory count, note
+   count, and streak into something more delightful than a flat photo grid — make it
+   the primary nav destination for "our progress," with a clearly visible "View all
+   memories" entry point inside Garden that opens the existing photo grid as a
+   sub-screen (memories aren't removed, just no longer their own top-level tab).
+
+2. Rebuild Home as the actual feature hub, not a thin dashboard: keep the hero/status/
+   mood/battery/streak/countdown section at the top, then add a horizontally-scrolling
+   row of feature cards below it — Garden, Our Story, Gratitude Wall, Dream Board,
+   Connect, Challenges & XP, AI Features — each card tappable, each with its own small
+   icon animation on appear (staggered fade+rise as the screen loads, not all at once).
+   This is what removes the "boring extra click into More" problem — nothing important
+   should require more than one tap from Home.
+
+3. Slim "More" down to account/utility only: Profile, Settings, Theme picker, Vault/PIN,
+   Subscription, Help & Support. Relationship features move OFF More entirely — More
+   becomes the place for app management, not feature discovery.
+
+4. Keep Chat and Notes as their own tabs — both are high-frequency, daily-use screens
+   that deserve a permanent nav slot.
+```
+
+---
+
+## Phase K — "Rose Garden" design system v2 + fix the theme bug properly
+
+```
+The theme bug: "only changes nav colors" means screens are very likely using hardcoded
+hex colors directly instead of reading from a shared theme source. This needs an actual
+refactor, not a patch:
+
+1. Define theme tokens once in a ThemeExtension (or a Provider<AppTheme> if you'd rather
+   avoid Flutter's ThemeExtension API) — background, surface, primaryAccent,
+   secondaryAccent, textColor.
+2. Go through every existing screen and replace every hardcoded Color(0x...) with a
+   reference to the active theme token (Theme.of(context).extension<AppTheme>() or
+   context.watch<AppTheme>()). This touches every screen built so far — budget real time
+   for this, it's not a quick fix.
+3. Ship exactly 2 fully-realized themes for now, not 4 half-working ones, matching your
+   own instinct that fewer-but-complete beats more-but-broken:
+   - "Midnight Rose" (the existing dark purple / rose gold) — default.
+   - "Garden Bloom" — a lighter, softer alternative: warm blush pink background, deep
+     rose accent, sage-green secondary accent (for the Garden screen specifically),
+     cream text surfaces. Same component structure as Midnight Rose, tokens only swap.
+4. Add a decorative botanical layer: a small set of single-line-weight rose/vine/leaf
+   SVG illustrations (flutter_svg), placed as low-opacity corner ornaments behind ONLY
+   the hero sections — Home hero, Profile header, Garden hero — never tiled across every
+   card, or it stops feeling special and starts feeling cluttered. One bold romantic
+   flourish per screen, not romance everywhere at once.
+```
+
+---
+
+## Phase L — Signature interactions: Heart Button + Petal Bloom transition
+
+```
+1. Build a reusable HeartButton widget: a heart-shaped hit area (CustomPainter heart
+   path, or a heart ClipPath) instead of a circular/rounded-rect button. On press: scale
+   95% -> 105% -> settle 100% (a quick "squish"), and on release, fire the existing
+   one-shot particle burst from Phase C. Use this specifically for Send Hug, Send Kiss,
+   Love Reactions, and "plant in Garden" actions — not for every button in the app, or
+   it loses meaning.
+2. Build one signature page transition, "Petal Bloom": outgoing screen fades and scales
+   down slightly to ~95%, incoming screen scales up from 95% to 100% with a brief soft
+   light bloom centered on wherever the user tapped. Implement as a single custom
+   PageRouteBuilder used for all named-route navigation — one transition, used
+   everywhere, not a different effect per screen.
+```
+
+---
+
+## Phase M — Genuine engagement mechanics (delight, not dark patterns)
+
+```
+Build retention features that work because the relationship genuinely benefits, not
+because they manufacture anxiety:
+
+1. Daily Surprise Slot: once per day, at a randomized time inside a window the user sets
+   (e.g. evening hours), a small gift icon appears on Home. Tapping it reveals a random
+   sweet message, mini-animation, or affirmation. This is a variable reward built on
+   genuine delight, not a countdown pressuring a purchase or action.
+2. ONE gentle streak reminder if neither partner has acted by a set time (e.g. 8pm),
+   phrased warmly — "Say good night to each other before today ends 🌙" — never
+   guilt-framed ("don't lose your streak!"). Don't send repeated nags in the same day.
+3. Let Garden's growth visualization do most of the "pull people back" work on its own —
+   a satisfying progress visual that people want to check is a healthier retention loop
+   than a manufactured urgency mechanic, and it directly reflects real relationship
+   activity rather than gaming a metric.
+4. Celebrate real milestones generously: full-screen confetti + sound + haptic on badge
+   unlocks, not just a small toast. The strongest, most honest retention lever you have
+   is making real progress feel genuinely good to see — lean into that before adding
+   anything more manipulative.
+```
