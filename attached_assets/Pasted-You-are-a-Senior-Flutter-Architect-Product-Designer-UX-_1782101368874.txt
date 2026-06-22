@@ -1,0 +1,414 @@
+You are a Senior Flutter Architect, Product Designer, UX Researcher, Animation Specialist, Firebase Expert, and Mobile Startup Founder.
+
+Build a production-ready Flutter application called:
+
+❤️ HeartSync
+Tagline: "Every Heartbeat, Together."
+
+Mission:
+Create the world's most beautiful, emotional, romantic, and engaging couples application. This must not feel like a utility app, chat app, or productivity app. It should feel like a private digital love universe designed exclusively for two people.
+
+Technology:
+
+- Flutter (Latest Stable)
+- Firebase Authentication
+- Firestore
+- Firebase Storage
+- Firebase Cloud Messaging
+- Riverpod
+- Go Router
+- RevenueCat
+- Lottie
+- Rive
+- Material 3
+- Clean Architecture
+- MVVM Pattern
+
+Design Philosophy:
+
+- Apple-quality design
+- Emotion-first UX
+- Premium and luxurious
+- Cute and adorable
+- Romantic and warm
+- Highly animated
+- Micro-interactions everywhere
+- Delightful user experience
+
+Visual Style:
+
+- Deep Purple background
+- Rose Gold accents
+- Soft Peach gradients
+- Lavender highlights
+- Glassmorphism cards
+- Aurora glows
+- Floating hearts
+- Heartbeat pulse effects
+- Soft shadows
+- Premium typography
+
+Animations:
+
+- Floating heart particles
+- Heartbeat pulse animation
+- Animated gradients
+- Smooth page transitions
+- Hero animations
+- Confetti celebrations
+- Love reaction explosions
+- Envelope opening effects
+- Love battery pulse
+- Garden growth animations
+- Pet animations
+- Haptic feedback
+
+Avoid:
+
+- Generic Flutter UI
+- Basic cards
+- Flat layouts
+- Empty screens
+- Standard CRUD feeling
+
+===================================================
+AUTHENTICATION
+
+Features:
+
+- Email Login
+- Google Login
+- Couple Invite Code
+- Couple Pairing System
+- Partner Connection Flow
+- Secure Session Management
+
+===================================================
+HOME SCREEN
+
+Create a magical dashboard.
+
+Hero Section:
+
+- Couple Photos
+- Couple Names
+- Days Together
+- Anniversary Countdown
+- Live Relationship Status
+- Animated Heartbeat Line
+
+Widgets:
+
+- Today's Mood
+- Partner Mood
+- Love Battery
+- Relationship Streak
+- Daily Challenge
+- Upcoming Events
+- Memory Of The Day
+- Love Weather
+- Partner Online Status
+
+Special:
+
+- Floating Hearts in Background
+- Breathing animations
+- Dynamic gradients
+
+===================================================
+CHAT SCREEN
+
+Real-time Couple Chat
+
+Features:
+
+- Text Messages
+- Voice Messages
+- Photos
+- Videos
+- Reactions
+- Reply Messages
+- Read Receipts
+- Typing Indicators
+
+Love Actions:
+
+- Send Hug
+- Send Kiss
+- Send Love
+- Miss You Button
+- Need Comfort Button
+- Good Morning Button
+- Good Night Button
+
+Special Effects:
+
+- Flying hearts
+- Love particles
+- Kiss explosion
+- Hug animation
+- Message glow
+
+===================================================
+MEMORIES SCREEN
+
+Features:
+
+- Photos
+- Videos
+- Albums
+- Timeline
+- Favorites
+- Tags
+- Search
+
+Views:
+
+- Timeline View
+- Calendar View
+- Story View
+
+Special:
+
+- Love Story Timeline
+- Relationship Journey
+- Anniversary Memories
+
+AI:
+
+- Monthly Recap
+- Memory Movies
+- Relationship Highlights
+
+===================================================
+LOVE NOTES SCREEN
+
+Features:
+
+- Love Letters
+- Scheduled Notes
+- Future Notes
+- Secret Notes
+- Voice Notes
+
+Design:
+
+- Envelope Opening Animation
+- Letter Unfold Animation
+- Romantic Paper Style
+
+Examples:
+
+- Open On Birthday
+- Open On Anniversary
+- Open When Missing Me
+
+===================================================
+CONNECT SCREEN
+
+Purpose:
+Help couples communicate deeply.
+
+Categories:
+
+Fun:
+
+- Never Have I Ever
+- This Or That
+- Agree Or Disagree
+
+Romantic:
+
+- Deep Talks
+- Love Questions
+- Relationship Questions
+
+Future:
+
+- Dream House
+- Marriage Plans
+- Travel Plans
+
+Games:
+
+- Couple Quiz
+- Compatibility Test
+- Love Language Test
+- Personality Match
+
+===================================================
+LOVE TIME MACHINE
+
+Flagship Feature
+
+Daily show:
+
+- Memories from years ago
+- Old photos
+- Old chats
+- Old voice notes
+- Anniversary memories
+
+Create emotional nostalgia.
+
+===================================================
+LOVE BATTERY
+
+Battery increases:
+
+- Chatting
+- Notes
+- Memories
+- Challenges
+
+Battery decreases:
+
+- Inactivity
+
+Visual:
+
+- Animated beating heart battery
+
+===================================================
+RELATIONSHIP GARDEN
+
+Virtual garden.
+
+Activity grows:
+
+- Plants
+- Flowers
+- Trees
+
+Milestones unlock:
+
+- New decorations
+- New flowers
+- Seasonal themes
+
+===================================================
+COUPLE PET
+
+Shared pet.
+
+Features:
+
+- Feed together
+- Play together
+- Level up together
+- Unlock accessories
+
+Cute animations.
+
+===================================================
+GRATITUDE WALL
+
+Daily prompt:
+
+"Today I appreciate you because..."
+
+Store forever.
+
+Generate beautiful gratitude timeline.
+
+===================================================
+DREAM BOARD
+
+Shared future planning.
+
+Categories:
+
+- Travel
+- Home
+- Wedding
+- Career
+- Life Goals
+
+Visual Pinterest-style board.
+
+===================================================
+LOVE VAULT
+
+Private space.
+
+Features:
+
+- PIN Lock
+- Hidden Photos
+- Hidden Videos
+- Hidden Notes
+- Hidden Voice Notes
+
+===================================================
+AI FEATURES
+
+- AI Love Letter Generator
+- AI Romantic Messages
+- AI Apology Generator
+- AI Anniversary Wishes
+- AI Birthday Wishes
+- AI Date Planner
+- AI Relationship Insights
+- AI Caption Generator
+- AI Memory Recap
+
+===================================================
+PREMIUM FEATURES
+
+- Unlimited Memories
+- Unlimited Storage
+- AI Features
+- Premium Themes
+- Couple Widgets
+- Relationship Book Export
+- Advanced Time Machine
+- Exclusive Animations
+- Custom Couple Themes
+
+===================================================
+GAMIFICATION
+
+Relationship XP
+
+Levels:
+
+Level 1 - New Love
+Level 5 - Best Friends
+Level 10 - Soulmates
+Level 25 - Forever Together
+Level 50 - Legendary Love
+
+Rewards:
+
+- Hearts
+- Badges
+- Themes
+- Decorations
+
+===================================================
+FINAL EXPERIENCE
+
+Every screen should feel alive.
+
+Users should constantly feel:
+
+- Loved
+- Connected
+- Appreciated
+- Emotional
+- Excited
+
+When opening the app:
+
+Animated logo appears.
+
+Heart slowly beats.
+
+Floating hearts rise.
+
+Text appears:
+
+❤️ HeartSync
+Every Heartbeat, Together.
+
+Build complete production-ready code, models, services, providers, Firestore structure, routing, authentication, animations, premium UI, reusable widgets, responsive layouts, and all features with clean scalable architecture.
