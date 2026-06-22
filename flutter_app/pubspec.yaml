@@ -29,11 +29,6 @@ dependencies:
   image_picker: ^1.1.2
   cached_network_image: ^3.4.1
 
-  # Encryption (Love Vault)
-  encrypt: ^5.0.3
-  crypto: ^3.0.5
-  pointycastle: ^3.9.1
-
   # Utils
   intl: ^0.19.0
   uuid: ^4.5.1

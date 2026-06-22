@@ -173,7 +173,7 @@ class _GdprRequestSheetState extends State<_GdprRequestSheet> {
               const SizedBox(height: 12),
               Text(isDeletion ? 'Deletion requested' : 'Export requested', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              const Text("Our team will process your request within 30 days.", style: TextStyle(color: AppTheme.textMuted, textAlign: TextAlign.center)),
+              const Text("Our team will process your request within 30 days.", textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textMuted)),
               const SizedBox(height: 24),
               ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
               const SizedBox(height: 20),

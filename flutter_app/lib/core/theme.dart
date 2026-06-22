@@ -1,128 +1,455 @@
 import 'package:flutter/material.dart';
 
-class AppTheme {
-  static const Color duskIndigo = Color(0xFF1C1B33);
-  static const Color inkDark = Color(0xFF121022);
-  static const Color mistWhite = Color(0xFFF3F1F6);
-  static const Color dawnAmber = Color(0xFFF2A65A);
-  static const Color horizonRose = Color(0xFFE8927C);
-  static const Color lavenderDusk = Color(0xFF9B8AC4);
-  static const Color surface = Color(0xFF252440);
-  static const Color surface2 = Color(0xFF2E2C4A);
-  static const Color border = Color(0xFF3A3859);
-  static const Color textPrimary = Color(0xFFF3F1F6);
-  static const Color textMuted = Color(0xFF8E8BAA);
-  static const Color success = Color(0xFF4ADE80);
-  static const Color warning = Color(0xFFFACC15);
-  static const Color danger = Color(0xFFF87171);
+// ─── Romantic Theme System ────────────────────────────────────────────────────
 
-  static Color primary = dawnAmber;
-  static Color secondary = horizonRose;
+enum RomanticTheme { horizon, midnightBloom, goldenHour, northernLights }
+
+class HeartSyncThemeData {
+  final RomanticTheme id;
+  final String name;
+  final String emoji;
+  final Color background;
+  final Color surface;
+  final Color surface2;
+  final Color border;
+  final Color primary;
+  final Color secondary;
+  final Color accent;
+  final List<Color> gradient;
+  final List<Color> heartColors;
+
+  const HeartSyncThemeData({
+    required this.id, required this.name, required this.emoji,
+    required this.background, required this.surface, required this.surface2,
+    required this.border, required this.primary, required this.secondary,
+    required this.accent, required this.gradient, required this.heartColors,
+  });
+}
+
+class AppTheme {
+  // ── Static tokens (Horizon default) ──────────────────────────────────────
+  static const duskIndigo   = Color(0xFF1C1B33);
+  static const inkDark      = Color(0xFF121022);
+  static const dawnAmber    = Color(0xFFF2A65A);
+  static const horizonRose  = Color(0xFFE8927C);
+  static const lavenderDusk = Color(0xFF9B8AC4);
+  static const surface      = Color(0xFF252440);
+  static const surface2     = Color(0xFF2E2C4A);
+  static const border       = Color(0xFF3A3859);
+  static const textPrimary  = Color(0xFFF3F1F6);
+  static const textMuted    = Color(0xFF8E8BAA);
+  static const success      = Color(0xFF4ADE80);
+  static const warning      = Color(0xFFFACC15);
+  static const danger       = Color(0xFFF87171);
+  static const roseGold     = Color(0xFFE05C7E);
+  static const softPeach    = Color(0xFFFFB3C6);
+  static const deepPurple   = Color(0xFF2D1B69);
+
+  // ── Theme catalogue ───────────────────────────────────────────────────────
+  static const Map<RomanticTheme, HeartSyncThemeData> themes = {
+    RomanticTheme.horizon: HeartSyncThemeData(
+      id: RomanticTheme.horizon, name: 'Horizon Line', emoji: '🌅',
+      background: Color(0xFF1C1B33), surface: Color(0xFF252440), surface2: Color(0xFF2E2C4A), border: Color(0xFF3A3859),
+      primary: Color(0xFFF2A65A), secondary: Color(0xFFE8927C), accent: Color(0xFF9B8AC4),
+      gradient: [Color(0xFF1C1B33), Color(0xFF2A2448), Color(0xFF1C1B33)],
+      heartColors: [Color(0xFFF2A65A), Color(0xFFE8927C), Color(0xFFFFD4A0)],
+    ),
+    RomanticTheme.midnightBloom: HeartSyncThemeData(
+      id: RomanticTheme.midnightBloom, name: 'Midnight Bloom', emoji: '🌹',
+      background: Color(0xFF0D0D1A), surface: Color(0xFF1A1528), surface2: Color(0xFF231D35), border: Color(0xFF3D2B50),
+      primary: Color(0xFFE05C7E), secondary: Color(0xFFB8449C), accent: Color(0xFFFFB3C6),
+      gradient: [Color(0xFF0D0D1A), Color(0xFF1A0D2E), Color(0xFF0D0D1A)],
+      heartColors: [Color(0xFFE05C7E), Color(0xFFB8449C), Color(0xFFFFB3C6)],
+    ),
+    RomanticTheme.goldenHour: HeartSyncThemeData(
+      id: RomanticTheme.goldenHour, name: 'Golden Hour', emoji: '✨',
+      background: Color(0xFF1A1208), surface: Color(0xFF2A1E0A), surface2: Color(0xFF352610), border: Color(0xFF4A3520),
+      primary: Color(0xFFF4A227), secondary: Color(0xFFE8713C), accent: Color(0xFFFFD9A0),
+      gradient: [Color(0xFF1A1208), Color(0xFF2A1800), Color(0xFF1A1208)],
+      heartColors: [Color(0xFFF4A227), Color(0xFFE8713C), Color(0xFFFFE4B0)],
+    ),
+    RomanticTheme.northernLights: HeartSyncThemeData(
+      id: RomanticTheme.northernLights, name: 'Northern Lights', emoji: '🌌',
+      background: Color(0xFF080F1A), surface: Color(0xFF0F1A2E), surface2: Color(0xFF162338), border: Color(0xFF1E3048),
+      primary: Color(0xFF56CFE1), secondary: Color(0xFF9B5DE5), accent: Color(0xFFAEEEF8),
+      gradient: [Color(0xFF080F1A), Color(0xFF0A1525), Color(0xFF080F1A)],
+      heartColors: [Color(0xFF56CFE1), Color(0xFF9B5DE5), Color(0xFFAEEEF8)],
+    ),
+  };
+
+  static HeartSyncThemeData themeData(RomanticTheme t) => themes[t]!;
+
+  static Color _hex(String h) {
+    final hex = h.replaceAll('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
 
   static ThemeData dark([Map<String, dynamic>? themeTokens]) {
-    final bg = themeTokens?['bg'] != null ? _hex(themeTokens!['bg']) : duskIndigo;
-    final pri = themeTokens?['primary'] != null ? _hex(themeTokens!['primary']) : dawnAmber;
-    final sec = themeTokens?['secondary'] != null ? _hex(themeTokens!['secondary']) : horizonRose;
+    final bg  = themeTokens?['bg']       != null ? _hex(themeTokens!['bg'])       : duskIndigo;
+    final pri = themeTokens?['primary']  != null ? _hex(themeTokens!['primary'])  : dawnAmber;
+    final sec = themeTokens?['secondary']!= null ? _hex(themeTokens!['secondary']): horizonRose;
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: bg,
       colorScheme: ColorScheme.dark(
-        primary: pri,
-        secondary: sec,
-        surface: surface,
-        error: danger,
+        primary: pri, secondary: sec, surface: surface, error: danger,
+        onPrimary: Colors.white, onSecondary: Colors.white, onSurface: textPrimary,
       ),
       fontFamily: 'Inter',
       appBarTheme: AppBarTheme(
-        backgroundColor: surface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        titleTextStyle: const TextStyle(
-          color: textPrimary,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          fontFamily: 'Inter',
-        ),
+        backgroundColor: bg, elevation: 0, surfaceTintColor: Colors.transparent,
+        titleTextStyle: const TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w600),
         iconTheme: const IconThemeData(color: textPrimary),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
         indicatorColor: pri.withValues(alpha: 0.15),
-        labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 11, color: textMuted, fontFamily: 'Inter'),
-        ),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pri);
+          return const TextStyle(fontSize: 11, color: textMuted);
+        }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return IconThemeData(color: pri);
-          return const IconThemeData(color: textMuted);
+          if (states.contains(WidgetState.selected)) return IconThemeData(color: pri, size: 22);
+          return const IconThemeData(color: textMuted, size: 22);
         }),
       ),
       cardTheme: CardThemeData(
-        color: surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: border),
-        ),
+        color: surface, elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: border)),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: surface2,
+        filled: true, fillColor: surface2,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: border)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: pri)),
-        hintStyle: const TextStyle(color: textMuted, fontFamily: 'Inter'),
-        labelStyle: const TextStyle(color: textMuted, fontFamily: 'Inter'),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: pri, width: 2)),
+        hintStyle: const TextStyle(color: textMuted), labelStyle: const TextStyle(color: textMuted),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: pri,
-          foregroundColor: Colors.white,
+          backgroundColor: pri, foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, fontFamily: 'Inter'),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       dividerTheme: const DividerThemeData(color: border, thickness: 1),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: surface2,
+        contentTextStyle: TextStyle(color: textPrimary),
+      ),
     );
   }
-
-  static Color _hex(String h) {
-    final hex = h.replaceAll('#', '');
-    return Color(int.parse('FF$hex', radix: 16));
-  }
 }
 
-class HorizonLinePainter extends CustomPainter {
-  final double progress;
-  HorizonLinePainter({this.progress = 1.0});
+// ─── Theme provider ──────────────────────────────────────────────────────────
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width * progress, size.height);
-    final paint = Paint()
-      ..shader = const LinearGradient(colors: [AppTheme.duskIndigo, AppTheme.horizonRose, AppTheme.dawnAmber]).createShader(rect)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width * progress, size.height / 2), paint);
-  }
+class ThemeProvider extends ChangeNotifier {
+  RomanticTheme _current = RomanticTheme.horizon;
+  RomanticTheme get current => _current;
+  HeartSyncThemeData get data => AppTheme.themeData(_current);
 
-  @override
-  bool shouldRepaint(HorizonLinePainter old) => old.progress != progress;
+  void setTheme(RomanticTheme t) { _current = t; notifyListeners(); }
 }
 
+// ─── Widget Library ──────────────────────────────────────────────────────────
+
+/// Animated horizon gradient line / progress bar
 class HorizonLine extends StatelessWidget {
   final double progress;
   final double height;
-  const HorizonLine({super.key, this.progress = 1.0, this.height = 2});
+  final List<Color>? colors;
+  const HorizonLine({super.key, this.progress = 1.0, this.height = 2, this.colors});
 
   @override
   Widget build(BuildContext context) {
+    final cs = colors ?? const [AppTheme.duskIndigo, AppTheme.horizonRose, AppTheme.dawnAmber];
     return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: CustomPaint(painter: HorizonLinePainter(progress: progress)),
+      height: height, width: double.infinity,
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: progress.clamp(0.0, 1.0),
+        child: DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(colors: cs),
+          borderRadius: BorderRadius.circular(height / 2),
+        )),
+      ),
+    );
+  }
+}
+
+/// Glass card with subtle blur effect
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets? padding;
+  final Color? tintColor;
+  const GlassCard({super.key, required this.child, this.padding, this.tintColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: (tintColor ?? AppTheme.surface).withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.border.withValues(alpha: 0.7), width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 6))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(padding: padding ?? const EdgeInsets.all(16), child: child),
+      ),
+    );
+  }
+}
+
+/// Heartbeat pulse animation wrapper
+class HeartbeatPulse extends StatefulWidget {
+  final Widget child;
+  final Duration period;
+  const HeartbeatPulse({super.key, required this.child, this.period = const Duration(milliseconds: 1400)});
+  @override
+  State<HeartbeatPulse> createState() => _HeartbeatPulseState();
+}
+
+class _HeartbeatPulseState extends State<HeartbeatPulse> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: widget.period);
+    _scale = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.20), weight: 12),
+      TweenSequenceItem(tween: Tween(begin: 1.20, end: 0.95), weight: 8),
+      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.14), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.14, end: 1.0),  weight: 15),
+      TweenSequenceItem(tween: Tween(begin: 1.0,  end: 1.0),  weight: 55),
+    ]).animate(_ctrl);
+    _ctrl.repeat();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => ScaleTransition(scale: _scale, child: widget.child);
+}
+
+/// Floating hearts background
+class FloatingHearts extends StatefulWidget {
+  final List<Color>? colors;
+  final int count;
+  const FloatingHearts({super.key, this.colors, this.count = 10});
+  @override
+  State<FloatingHearts> createState() => _FloatingHeartsState();
+}
+
+class _FloatingHeartsState extends State<FloatingHearts> with TickerProviderStateMixin {
+  late List<AnimationController> _ctrls;
+  late List<Animation<double>> _pos;
+  late List<Animation<double>> _opa;
+  final _hearts = <_Particle>[];
+
+  @override
+  void initState() {
+    super.initState();
+    final colors = widget.colors ?? const [AppTheme.dawnAmber, AppTheme.horizonRose, AppTheme.lavenderDusk];
+    _ctrls = List.generate(widget.count, (i) =>
+      AnimationController(vsync: this, duration: Duration(milliseconds: 4000 + (i * 313) % 2500)));
+    _pos = _ctrls.map((c) => Tween(begin: 1.1, end: -0.15).animate(CurvedAnimation(parent: c, curve: Curves.easeInOut))).toList();
+    _opa = _ctrls.map((c) => TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.5), weight: 20),
+      TweenSequenceItem(tween: Tween(begin: 0.5, end: 0.5), weight: 60),
+      TweenSequenceItem(tween: Tween(begin: 0.5, end: 0.0), weight: 20),
+    ]).animate(c)).toList();
+    for (int i = 0; i < widget.count; i++) {
+      _hearts.add(_Particle(x: (i * 0.1 + 0.03) % 1.0, size: 8 + (i * 4.1) % 14, color: colors[i % colors.length], phase: i.toDouble()));
+      Future.delayed(Duration(milliseconds: (i * 350) % 3500), () { if (mounted) _ctrls[i].repeat(); });
+    }
+  }
+
+  @override
+  void dispose() { for (final c in _ctrls) c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(child: AnimatedBuilder(
+    animation: Listenable.merge(_ctrls),
+    builder: (_, __) => CustomPaint(
+      painter: _HeartsPainter(_hearts, _pos.map((a) => a.value).toList(), _opa.map((a) => a.value).toList()),
+      size: Size.infinite,
+    ),
+  ));
+}
+
+class _Particle {
+  final double x, size, phase;
+  final Color color;
+  const _Particle({required this.x, required this.size, required this.color, required this.phase});
+}
+
+class _HeartsPainter extends CustomPainter {
+  final List<_Particle> hearts;
+  final List<double> positions, opacities;
+  _HeartsPainter(this.hearts, this.positions, this.opacities);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (int i = 0; i < hearts.length && i < positions.length; i++) {
+      final h = hearts[i];
+      final yFrac = positions[i];
+      final sway = (yFrac * 6.28 + h.phase) * 0.05;
+      final x = ((h.x + sway).clamp(0.0, 1.0)) * size.width;
+      final y = yFrac * size.height;
+      final paint = Paint()..color = h.color.withValues(alpha: opacities[i].clamp(0.0, 1.0));
+      _drawHeart(canvas, Offset(x, y), h.size, paint);
+    }
+  }
+
+  void _drawHeart(Canvas canvas, Offset c, double s, Paint p) {
+    final path = Path()
+      ..moveTo(c.dx, c.dy + s * 0.35)
+      ..cubicTo(c.dx - s * 0.5, c.dy, c.dx - s * 0.55, c.dy - s * 0.6, c.dx, c.dy - s * 0.25)
+      ..cubicTo(c.dx + s * 0.55, c.dy - s * 0.6, c.dx + s * 0.5, c.dy, c.dx, c.dy + s * 0.35)
+      ..close();
+    canvas.drawPath(path, p);
+  }
+
+  @override
+  bool shouldRepaint(_HeartsPainter old) => true;
+}
+
+/// Confetti burst overlay
+class ConfettiOverlay extends StatefulWidget {
+  const ConfettiOverlay({super.key});
+  @override
+  State<ConfettiOverlay> createState() => _ConfettiOverlayState();
+}
+
+class _ConfettiOverlayState extends State<ConfettiOverlay> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  final _ps = <_CP>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..forward();
+    const cols = [AppTheme.dawnAmber, AppTheme.horizonRose, AppTheme.lavenderDusk, AppTheme.success, AppTheme.warning, AppTheme.roseGold];
+    for (int i = 0; i < 50; i++) {
+      _ps.add(_CP(
+        x: 0.5 + (i % 7 - 3) * 0.07,
+        vx: ((i * 0.41) % 1.0 - 0.5) * 0.9,
+        vy: -0.9 - (i * 0.11) % 0.6,
+        color: cols[i % cols.length],
+        size: 5 + (i * 1.3) % 7,
+        rot: (i * 0.71) % 3.14,
+      ));
+    }
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(child: AnimatedBuilder(
+    animation: _ctrl,
+    builder: (_, __) => CustomPaint(painter: _ConfettiPainter(_ps, _ctrl.value), size: Size.infinite),
+  ));
+}
+
+class _CP { final double x, vx, vy, size, rot; final Color color; const _CP({required this.x, required this.vx, required this.vy, required this.size, required this.rot, required this.color}); }
+
+class _ConfettiPainter extends CustomPainter {
+  final List<_CP> ps; final double t;
+  _ConfettiPainter(this.ps, this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in ps) {
+      final grav = 0.6 * t * t;
+      final cx = (p.x + p.vx * t) * size.width;
+      final cy = (0.35 + p.vy * t + grav) * size.height;
+      final opa = (1.0 - t).clamp(0.0, 1.0);
+      canvas.save();
+      canvas.translate(cx, cy);
+      canvas.rotate(p.rot + t * 5);
+      canvas.drawRect(Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.5), Paint()..color = p.color.withValues(alpha: opa));
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => true;
+}
+
+/// Shimmer loading placeholder
+class ShimmerBox extends StatefulWidget {
+  final double width, height;
+  final double radius;
+  const ShimmerBox({super.key, required this.width, required this.height, this.radius = 8});
+  @override
+  State<ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<ShimmerBox> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _anim = Tween(begin: -1.5, end: 1.5).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _ctrl.repeat();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _anim,
+    builder: (_, __) => Container(
+      width: widget.width, height: widget.height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(widget.radius),
+        gradient: LinearGradient(
+          begin: Alignment(_anim.value, 0), end: Alignment(_anim.value + 1, 0),
+          colors: const [AppTheme.surface, AppTheme.surface2, AppTheme.surface],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Gradient glow button
+class GlowButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  final List<Color>? colors;
+  final IconData? icon;
+  const GlowButton({super.key, required this.label, this.onTap, this.colors, this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = colors ?? const [AppTheme.dawnAmber, AppTheme.horizonRose];
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52, alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: cs),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: cs.first.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 6))],
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (icon != null) ...[Icon(icon, color: Colors.white, size: 18), const SizedBox(width: 8)],
+          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+        ]),
+      ),
     );
   }
 }

@@ -1,2 +1,4 @@
 - [Flutter web setup](flutter-web-setup.md) — Flutter 3.32.0 via Nix; Flutter app in flutter_app/, runs on port 8080; admin console on port 5000
 - [Firebase config split](firebase-config-split.md) — Two separate Firebase web app registrations: admin console uses appId cc0d6..., Flutter app uses appId 7b1bd4...
+- [Flutter build rules](flutter-build-rules.md) — critical package exclusions and compilation pitfalls for this project
+- [ThemeProvider wiring](theme-provider-wiring.md) — how ThemeProvider is integrated into main.dart and shell

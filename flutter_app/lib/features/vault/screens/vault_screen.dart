@@ -98,7 +98,7 @@ class _VaultContents extends StatelessWidget {
             SizedBox(height: 16),
             Text('Your vault is empty', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             SizedBox(height: 8),
-            Text('Add private photos and notes only you two can see', style: TextStyle(color: AppTheme.textMuted, textAlign: TextAlign.center)),
+            Text('Add private photos and notes only you two can see', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textMuted)),
           ]))),
         ]),
       ),
