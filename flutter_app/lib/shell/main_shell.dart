@@ -22,6 +22,8 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   int _idx = 0;
   late AnimationController _navAnim;
   late final List<_NavItem> _items;
+  // Screens built ONCE — not rebuilt on every shell render (fixes blank home screen)
+  late final List<Widget> _screens;
 
   @override
   void initState() {
@@ -34,6 +36,8 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       _NavItem(label: 'Notes',  icon: Icons.mail_outline,          activeIcon: Icons.mail,          builder: () => NotesScreen(coupleId: widget.coupleId)),
       _NavItem(label: 'More',   icon: Icons.grid_view_outlined,    activeIcon: Icons.grid_view,     builder: () => _MoreScreen(coupleId: widget.coupleId)),
     ];
+    // Build each screen widget exactly once and cache it
+    _screens = _items.map((e) => e.builder()).toList();
   }
 
   @override
@@ -48,7 +52,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     final themeData = context.watch<ThemeProvider>().data;
     return Scaffold(
-      body: IndexedStack(index: _idx, children: _items.map((e) => e.builder()).toList()),
+      body: IndexedStack(index: _idx, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: themeData.surface,

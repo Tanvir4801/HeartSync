@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,29 +23,46 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    debugPrint('[HomeScreen] build — coupleId=$coupleId uid=$uid');
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _Header(coupleId: coupleId),
-            _DailySurprise(coupleId: coupleId),
-            _ClockRow(),
-            _MoodSection(coupleId: coupleId, uid: uid),
-            _BatterySection(coupleId: coupleId),
-            _StreakSection(coupleId: coupleId),
-            _HugButtons(coupleId: coupleId, uid: uid),
-            _QuickActions(coupleId: coupleId),
-            _FeatureHub(coupleId: coupleId),
-            const SizedBox(height: 36),
-          ]),
+    debugPrint('[HomeScreen] build coupleId=$coupleId uid=$uid');
+    try {
+      final td = context.watch<ThemeProvider>().data;
+      return Scaffold(
+        backgroundColor: td.background,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Header(coupleId: coupleId),
+                _DailySurprise(coupleId: coupleId),
+                _ClockRow(),
+                _MoodSection(coupleId: coupleId, uid: uid),
+                _BatterySection(coupleId: coupleId),
+                _StreakSection(coupleId: coupleId),
+                _HugButtons(coupleId: coupleId, uid: uid),
+                _QuickActions(coupleId: coupleId),
+                _FeatureHub(coupleId: coupleId),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e, s) {
+      debugPrint('[HomeScreen] TOP-LEVEL BUILD ERROR: $e\n$s');
+      return Scaffold(
+        backgroundColor: AppTheme.duskIndigo,
+        body: Center(child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('HomeScreen error: $e', style: const TextStyle(color: Colors.red, fontSize: 13)),
+        )),
+      );
+    }
   }
 }
 
-// ── Header ──────────────────────────────────────────────────────────────────
+// ── Header ───────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   final String coupleId;
@@ -54,47 +70,56 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final td = context.watch<ThemeProvider>().data;
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirestoreService().coupleDoc(coupleId).snapshots(),
-      builder: (_, snap) {
-        if (snap.hasError) {
-          debugPrint('[HomeScreen] header stream error: ${snap.error}');
-        }
-        final data = snap.data?.data() as Map<String, dynamic>?;
-        final anniversary = (data?['anniversaryDate'] as Timestamp?)?.toDate();
-        final days = anniversary != null ? DateTime.now().difference(anniversary).inDays : 0;
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-            child: Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('HeartSync', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w500, letterSpacing: 0.08)),
-                const SizedBox(height: 4),
-                snap.connectionState == ConnectionState.waiting
-                    ? ShimmerBox(width: 180, height: 28, radius: 6)
-                    : Text(
-                        anniversary != null ? '$days days together 💕' : 'Welcome home 💕',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: td.primary, fontFamily: 'Fraunces'),
-                      ),
-              ])),
-              HeartbeatPulse(child: const Text('❤️', style: TextStyle(fontSize: 28))),
-            ]),
-          ),
-          HorizonLine(height: 2, colors: [td.primary, td.secondary]),
-        ]);
-      },
-    );
+    debugPrint('[_Header] build');
+    try {
+      final td = context.watch<ThemeProvider>().data;
+      return StreamBuilder<DocumentSnapshot>(
+        stream: FirestoreService().coupleDoc(coupleId).snapshots(),
+        builder: (_, snap) {
+          if (snap.hasError) {
+            debugPrint('[_Header] stream error: ${snap.error}');
+          }
+          Map<String, dynamic>? data;
+          try { data = snap.data?.data() as Map<String, dynamic>?; } catch (e) { debugPrint('[_Header] data cast: $e'); }
+
+          DateTime? anniversary;
+          try { anniversary = (data?['anniversaryDate'] as Timestamp?)?.toDate(); } catch (e) { debugPrint('[_Header] anniversary cast: $e'); }
+
+          final days = anniversary != null ? DateTime.now().difference(anniversary).inDays : 0;
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('HeartSync', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w500, letterSpacing: 0.08)),
+                  const SizedBox(height: 4),
+                  snap.connectionState == ConnectionState.waiting
+                      ? const ShimmerBox(width: 180, height: 28, radius: 6)
+                      : Text(
+                          anniversary != null ? '$days days together 💕' : 'Welcome home 💕',
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: td.primary),
+                        ),
+                ])),
+                const HeartbeatPulse(child: Text('❤️', style: TextStyle(fontSize: 28))),
+              ]),
+            ),
+            HorizonLine(height: 2, colors: [td.primary, td.secondary]),
+          ]);
+        },
+      );
+    } catch (e, s) {
+      debugPrint('[_Header] BUILD ERROR: $e\n$s');
+      return Text('Header error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
 }
 
-// ── Daily Surprise ──────────────────────────────────────────────────────────
+// ── Daily Surprise ────────────────────────────────────────────────────────────
 
 class _DailySurprise extends StatefulWidget {
   final String coupleId;
   const _DailySurprise({required this.coupleId});
-  @override
-  State<_DailySurprise> createState() => _DailySurpriseState();
+  @override State<_DailySurprise> createState() => _DailySurpriseState();
 }
 
 class _DailySurpriseState extends State<_DailySurprise> {
@@ -112,152 +137,168 @@ class _DailySurpriseState extends State<_DailySurprise> {
   ];
 
   bool get _shouldShow => _seenDay[widget.coupleId] != DateTime.now().day && !_dismissed;
-  String get _todayMessage => _messages[(DateTime.now().month * 31 + DateTime.now().day) % _messages.length];
+  String get _todayMsg => _messages[(DateTime.now().month * 31 + DateTime.now().day) % _messages.length];
 
   @override
   Widget build(BuildContext context) {
-    if (!_shouldShow) return const SizedBox.shrink();
-    final td = context.watch<ThemeProvider>().data;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _revealed
-            ? Container(
-                key: const ValueKey('revealed'),
-                padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [td.primary.withValues(alpha: 0.10), td.secondary.withValues(alpha: 0.06)]),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: td.primary.withValues(alpha: 0.3)),
-                ),
-                child: Row(children: [
-                  const Text('✨', style: TextStyle(fontSize: 22)),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(_todayMessage, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.45))),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 15, color: AppTheme.textMuted),
-                    onPressed: () { _seenDay[widget.coupleId] = DateTime.now().day; setState(() => _dismissed = true); },
-                    padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+    debugPrint('[_DailySurprise] build shouldShow=$_shouldShow');
+    try {
+      if (!_shouldShow) return const SizedBox.shrink();
+      final td = context.watch<ThemeProvider>().data;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: _revealed
+              ? Container(
+                  key: const ValueKey('r'),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [td.primary.withValues(alpha: 0.10), td.secondary.withValues(alpha: 0.06)]),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: td.primary.withValues(alpha: 0.3)),
                   ),
-                ]),
-              )
-            : GestureDetector(
-                key: const ValueKey('gift'),
-                onTap: () => setState(() => _revealed = true),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  decoration: BoxDecoration(color: td.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: td.border)),
                   child: Row(children: [
-                    const Text('🎁', style: TextStyle(fontSize: 22)),
+                    const Text('✨', style: TextStyle(fontSize: 22)),
                     const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Daily surprise', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      const Text('Tap to reveal today\'s message', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                    ])),
-                    Icon(Icons.chevron_right, color: AppTheme.textMuted.withValues(alpha: 0.5), size: 16),
+                    Expanded(child: Text(_todayMsg, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.45))),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 15, color: AppTheme.textMuted),
+                      onPressed: () { _seenDay[widget.coupleId] = DateTime.now().day; setState(() => _dismissed = true); },
+                      padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+                    ),
                   ]),
+                )
+              : GestureDetector(
+                  key: const ValueKey('g'),
+                  onTap: () => setState(() => _revealed = true),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    decoration: BoxDecoration(color: td.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: td.border)),
+                    child: Row(children: [
+                      const Text('🎁', style: TextStyle(fontSize: 22)),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Daily surprise', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('Tap to reveal today\'s message', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                      ])),
+                      Icon(Icons.chevron_right, color: AppTheme.textMuted.withValues(alpha: 0.5), size: 16),
+                    ]),
+                  ),
                 ),
-              ),
-      ),
-    );
+        ),
+      );
+    } catch (e, s) {
+      debugPrint('[_DailySurprise] BUILD ERROR: $e\n$s');
+      return const SizedBox.shrink();
+    }
   }
 }
 
-// ── Clock Row ────────────────────────────────────────────────────────────────
+// ── Clock Row ─────────────────────────────────────────────────────────────────
 
 class _ClockRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Card(child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          _ClockBlock(label: 'Your Time', time: _fmt(now)),
-          Column(children: [HorizonLine(height: 2), const SizedBox(height: 4), const Text('❤️', style: TextStyle(fontSize: 16))]),
-          _ClockBlock(label: "Partner's Time", time: _fmt(now.toUtc().add(const Duration(hours: 2)))),
-        ]),
-      )),
-    );
+    debugPrint('[_ClockRow] build');
+    try {
+      final now = DateTime.now();
+      final td = context.watch<ThemeProvider>().data;
+      String fmt(DateTime t) => '${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Card(child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            _ClockBlock(label: 'Your Time', time: fmt(now), color: td.primary),
+            Column(children: [HorizonLine(height: 2), const SizedBox(height: 4), const Text('❤️', style: TextStyle(fontSize: 16))]),
+            _ClockBlock(label: "Partner's Time", time: fmt(now.toUtc().add(const Duration(hours: 2))), color: td.primary),
+          ]),
+        )),
+      );
+    } catch (e, s) {
+      debugPrint('[_ClockRow] BUILD ERROR: $e\n$s');
+      return Text('Clock error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
-
-  String _fmt(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 }
 
 class _ClockBlock extends StatelessWidget {
   final String label, time;
-  const _ClockBlock({required this.label, required this.time});
+  final Color color;
+  const _ClockBlock({required this.label, required this.time, required this.color});
   @override
-  Widget build(BuildContext context) {
-    final td = context.watch<ThemeProvider>().data;
-    return Column(children: [
-      Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
-      const SizedBox(height: 3),
-      Text(time, style: TextStyle(fontSize: 20, fontFamily: 'JetBrains Mono', fontWeight: FontWeight.w700, color: td.primary)),
-    ]);
-  }
+  Widget build(BuildContext context) => Column(children: [
+    Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+    const SizedBox(height: 3),
+    Text(time, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color, fontFamily: 'monospace')),
+  ]);
 }
 
-// ── Mood ─────────────────────────────────────────────────────────────────────
+// ── Mood Section ──────────────────────────────────────────────────────────────
 
 class _MoodSection extends StatefulWidget {
   final String coupleId, uid;
   const _MoodSection({required this.coupleId, required this.uid});
-  @override
-  State<_MoodSection> createState() => _MoodSectionState();
+  @override State<_MoodSection> createState() => _MoodSectionState();
 }
 
 class _MoodSectionState extends State<_MoodSection> {
-  final _moods = ['😊', '😍', '😔', '🥺', '😤', '🫶'];
+  static const _moods = ['😊', '😍', '😔', '🥺', '😤', '🫶'];
   String? _myMood;
 
   Future<void> _setMood(String mood) async {
+    debugPrint('[_MoodSection] setting mood: $mood');
     setState(() => _myMood = mood);
     try {
-      await FirestoreService().sub(widget.coupleId, 'moods').add({'userId': widget.uid, 'mood': mood, 'timestamp': FieldValue.serverTimestamp()});
+      await FirestoreService().sub(widget.coupleId, 'moods').add({
+        'userId': widget.uid, 'mood': mood, 'timestamp': FieldValue.serverTimestamp()
+      });
       await FirestoreService().updateDailyAction(widget.coupleId, widget.uid);
     } catch (e) {
-      debugPrint('[HomeScreen] mood write error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save mood: $e'), backgroundColor: AppTheme.danger));
+      debugPrint('[_MoodSection] error: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final td = context.watch<ThemeProvider>().data;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Card(child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Today\'s Mood', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.04)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _moods.map((m) => GestureDetector(
-              onTap: () => _setMood(m),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: _myMood == m ? td.primary.withValues(alpha: 0.15) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _myMood == m ? td.primary : Colors.transparent),
+    debugPrint('[_MoodSection] build');
+    try {
+      final td = context.watch<ThemeProvider>().data;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Card(child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Today\'s Mood', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: _moods.map((m) => GestureDetector(
+                onTap: () => _setMood(m),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: _myMood == m ? td.primary.withValues(alpha: 0.15) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _myMood == m ? td.primary : Colors.transparent),
+                  ),
+                  child: Text(m, style: const TextStyle(fontSize: 26)),
                 ),
-                child: Text(m, style: const TextStyle(fontSize: 26)),
-              ),
-            )).toList(),
-          ),
-        ]),
-      )),
-    );
+              )).toList(),
+            ),
+          ]),
+        )),
+      );
+    } catch (e, s) {
+      debugPrint('[_MoodSection] BUILD ERROR: $e\n$s');
+      return Text('Mood error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
 }
 
-// ── Battery ───────────────────────────────────────────────────────────────────
+// ── Battery Section ───────────────────────────────────────────────────────────
 
 class _BatterySection extends StatelessWidget {
   final String coupleId;
@@ -265,47 +306,57 @@ class _BatterySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final td = context.watch<ThemeProvider>().data;
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirestoreService().sub(coupleId, 'battery').doc('current').snapshots(),
-      builder: (_, snap) {
-        if (snap.hasError) {
-          debugPrint('[HomeScreen] battery stream error: ${snap.error}');
+    debugPrint('[_BatterySection] build');
+    try {
+      final td = context.watch<ThemeProvider>().data;
+      return StreamBuilder<DocumentSnapshot>(
+        stream: FirestoreService().sub(coupleId, 'battery').doc('current').snapshots(),
+        builder: (_, snap) {
+          if (snap.hasError) {
+            debugPrint('[_BatterySection] error: ${snap.error}');
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Card(child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  const Text('🔋', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text('Love Battery', style: TextStyle(fontWeight: FontWeight.w600))),
+                  Text('—', style: TextStyle(color: AppTheme.textMuted)),
+                ]),
+              )),
+            );
+          }
+          int level = 50;
+          try {
+            final d = snap.data?.data() as Map<String, dynamic>?;
+            level = (d?['level'] as num?)?.toInt() ?? 50;
+          } catch (e) { debugPrint('[_BatterySection] level cast: $e'); }
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Card(child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Row(children: [
-                const Text('🔋', style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 10),
-                const Expanded(child: Text('Love Battery', style: TextStyle(fontWeight: FontWeight.w600))),
-                Text('Offline', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Text('Love Battery', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  Text('$level%', style: TextStyle(fontWeight: FontWeight.w700, color: td.primary, fontSize: 13)),
+                ]),
+                const SizedBox(height: 10),
+                HorizonLine(progress: level / 100, height: 8, colors: [td.primary, td.secondary]),
               ]),
             )),
           );
-        }
-        final level = (snap.data?.data() as Map<String, dynamic>?)?['level'] as int? ?? 50;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Card(child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                const Text('Love Battery', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                Text('$level%', style: TextStyle(fontWeight: FontWeight.w700, color: td.primary, fontSize: 13, fontFamily: 'JetBrains Mono')),
-              ]),
-              const SizedBox(height: 10),
-              HorizonLine(progress: level / 100, height: 8, colors: [td.primary, td.secondary]),
-            ]),
-          )),
-        );
-      },
-    );
+        },
+      );
+    } catch (e, s) {
+      debugPrint('[_BatterySection] BUILD ERROR: $e\n$s');
+      return Text('Battery error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
 }
 
-// ── Streak ────────────────────────────────────────────────────────────────────
+// ── Streak Section ────────────────────────────────────────────────────────────
 
 class _StreakSection extends StatelessWidget {
   final String coupleId;
@@ -313,91 +364,110 @@ class _StreakSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final td = context.watch<ThemeProvider>().data;
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirestoreService().coupleDoc(coupleId).snapshots(),
-      builder: (_, snap) {
-        if (snap.hasError) {
-          debugPrint('[HomeScreen] streak stream error: ${snap.error}');
-          return const SizedBox.shrink();
-        }
-        final data = snap.data?.data() as Map<String, dynamic>?;
-        final streak = data?['streak'] as int? ?? 0;
-        final isEvening = DateTime.now().hour >= 20;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Card(child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(children: [
-              Row(children: [
-                Container(width: 44, height: 44,
-                  decoration: BoxDecoration(gradient: LinearGradient(colors: [td.primary, td.secondary]), borderRadius: BorderRadius.circular(12)),
-                  child: const Center(child: Text('🔥', style: TextStyle(fontSize: 22))),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('$streak day streak', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                  const Text('Both act daily to keep it alive', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
-                ])),
+    debugPrint('[_StreakSection] build');
+    try {
+      final td = context.watch<ThemeProvider>().data;
+      return StreamBuilder<DocumentSnapshot>(
+        stream: FirestoreService().coupleDoc(coupleId).snapshots(),
+        builder: (_, snap) {
+          if (snap.hasError) {
+            debugPrint('[_StreakSection] error: ${snap.error}');
+            return const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Text('Streak unavailable', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
+            );
+          }
+          int streak = 0;
+          try {
+            final d = snap.data?.data() as Map<String, dynamic>?;
+            streak = (d?['streak'] as num?)?.toInt() ?? 0;
+          } catch (e) { debugPrint('[_StreakSection] streak cast: $e'); }
+          final isEvening = DateTime.now().hour >= 20;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Card(child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(children: [
+                Row(children: [
+                  Container(width: 44, height: 44,
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [td.primary, td.secondary]), borderRadius: BorderRadius.circular(12)),
+                    child: const Center(child: Text('🔥', style: TextStyle(fontSize: 22))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('$streak day streak', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    const Text('Both act daily to keep it alive', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
+                  ])),
+                ]),
+                if (isEvening && streak > 0) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3))),
+                    child: const Row(children: [
+                      Text('🌙', style: TextStyle(fontSize: 13)),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Say good night before today ends to protect your streak', style: TextStyle(fontSize: 11, color: AppTheme.warning, height: 1.4))),
+                    ]),
+                  ),
+                ],
               ]),
-              if (isEvening && streak > 0) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3))),
-                  child: const Row(children: [
-                    Text('🌙', style: TextStyle(fontSize: 13)),
-                    SizedBox(width: 8),
-                    Expanded(child: Text('Say good night before today ends to protect your streak 🌙', style: TextStyle(fontSize: 11, color: AppTheme.warning, height: 1.4))),
-                  ]),
-                ),
-              ],
-            ]),
-          )),
-        );
-      },
-    );
+            )),
+          );
+        },
+      );
+    } catch (e, s) {
+      debugPrint('[_StreakSection] BUILD ERROR: $e\n$s');
+      return Text('Streak error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
 }
 
-// ── Hug Buttons (HeartButton) ────────────────────────────────────────────────
+// ── Hug Buttons ───────────────────────────────────────────────────────────────
 
 class _HugButtons extends StatelessWidget {
   final String coupleId, uid;
   const _HugButtons({required this.coupleId, required this.uid});
 
-  Future<void> _send(BuildContext context, String type) async {
+  Future<void> _send(BuildContext ctx, String type) async {
+    debugPrint('[_HugButtons] sending type=$type');
     try {
       await FirestoreService().sub(coupleId, 'hugs').add({'fromUid': uid, 'type': type, 'sentAt': FieldValue.serverTimestamp()});
       await FirestoreService().updateDailyAction(coupleId, uid);
-      if (context.mounted) {
+      if (ctx.mounted) {
         const msgs = {'hug': 'Hug sent! 🤗', 'kiss': 'Kiss sent! 💋', 'miss': 'Miss you sent! 💭'};
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgs[type] ?? 'Sent!'), backgroundColor: AppTheme.horizonRose, duration: const Duration(seconds: 2)));
+        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msgs[type] ?? 'Sent!'), backgroundColor: AppTheme.horizonRose, duration: const Duration(seconds: 2)));
       }
     } catch (e) {
-      debugPrint('[HomeScreen] hug send error: $e');
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger));
+      debugPrint('[_HugButtons] error: $e');
+      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final td = context.watch<ThemeProvider>().data;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Card(child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(children: [
-          const Text('Send', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.04)),
-          const SizedBox(height: 14),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            HeartButton(size: 64, color: td.primary, label: 'Hug', onPressed: () => _send(context, 'hug'), child: const Text('🤗', style: TextStyle(fontSize: 26))),
-            HeartButton(size: 64, color: td.secondary, label: 'Kiss', onPressed: () => _send(context, 'kiss'), child: const Text('💋', style: TextStyle(fontSize: 26))),
-            HeartButton(size: 64, color: AppTheme.lavenderDusk, label: 'Miss You', onPressed: () => _send(context, 'miss'), child: const Text('💭', style: TextStyle(fontSize: 26))),
+    debugPrint('[_HugButtons] build');
+    try {
+      final td = context.watch<ThemeProvider>().data;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Card(child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(children: [
+            const Text('Send', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 14),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+              HeartButton(size: 64, color: td.primary, label: 'Hug', onPressed: () => _send(context, 'hug'), child: const Text('🤗', style: TextStyle(fontSize: 26))),
+              HeartButton(size: 64, color: td.secondary, label: 'Kiss', onPressed: () => _send(context, 'kiss'), child: const Text('💋', style: TextStyle(fontSize: 26))),
+              HeartButton(size: 64, color: AppTheme.lavenderDusk, label: 'Miss You', onPressed: () => _send(context, 'miss'), child: const Text('💭', style: TextStyle(fontSize: 26))),
+            ]),
           ]),
-        ]),
-      )),
-    );
+        )),
+      );
+    } catch (e, s) {
+      debugPrint('[_HugButtons] BUILD ERROR: $e\n$s');
+      return Text('HugButtons error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
 }
 
@@ -406,19 +476,26 @@ class _HugButtons extends StatelessWidget {
 class _QuickActions extends StatelessWidget {
   final String coupleId;
   const _QuickActions({required this.coupleId});
+
   @override
   Widget build(BuildContext context) {
-    final td = context.watch<ThemeProvider>().data;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Row(children: [
-        Expanded(child: _ActionCard(icon: Icons.add_photo_alternate_outlined, label: 'Add Memory', color: td.primary,
-          onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => AddMemoryScreen(coupleId: coupleId))))),
-        const SizedBox(width: 12),
-        Expanded(child: _ActionCard(icon: Icons.note_add_outlined, label: 'Love Note', color: td.secondary,
-          onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => AddNoteScreen(coupleId: coupleId))))),
-      ]),
-    );
+    debugPrint('[_QuickActions] build');
+    try {
+      final td = context.watch<ThemeProvider>().data;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Row(children: [
+          Expanded(child: _ActionCard(icon: Icons.add_photo_alternate_outlined, label: 'Add Memory', color: td.primary,
+            onTap: () { try { Navigator.push(context, petalBloomRoute(builder: (_) => AddMemoryScreen(coupleId: coupleId))); } catch (e) { debugPrint('[_QuickActions] nav error: $e'); } })),
+          const SizedBox(width: 12),
+          Expanded(child: _ActionCard(icon: Icons.note_add_outlined, label: 'Love Note', color: td.secondary,
+            onTap: () { try { Navigator.push(context, petalBloomRoute(builder: (_) => AddNoteScreen(coupleId: coupleId))); } catch (e) { debugPrint('[_QuickActions] nav error: $e'); } })),
+        ]),
+      );
+    } catch (e, s) {
+      debugPrint('[_QuickActions] BUILD ERROR: $e\n$s');
+      return Text('QuickActions error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
 }
 
@@ -428,8 +505,7 @@ class _ActionCard extends StatefulWidget {
   final Color color;
   final VoidCallback onTap;
   const _ActionCard({required this.icon, required this.label, required this.color, required this.onTap});
-  @override
-  State<_ActionCard> createState() => _ActionCardState();
+  @override State<_ActionCard> createState() => _ActionCardState();
 }
 class _ActionCardState extends State<_ActionCard> {
   bool _pressed = false;
@@ -456,13 +532,25 @@ class _ActionCardState extends State<_ActionCard> {
 class _FeatureHub extends StatefulWidget {
   final String coupleId;
   const _FeatureHub({required this.coupleId});
-  @override
-  State<_FeatureHub> createState() => _FeatureHubState();
+  @override State<_FeatureHub> createState() => _FeatureHubState();
 }
 
 class _FeatureHubState extends State<_FeatureHub> with TickerProviderStateMixin {
   late List<AnimationController> _ctrls;
   late List<Animation<double>> _fades, _scales;
+  static const _count = 7;
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('[_FeatureHub] initState');
+    _ctrls  = List.generate(_count, (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 360)));
+    _fades  = _ctrls.map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut)).toList();
+    _scales = _ctrls.map((c) => Tween(begin: 0.85, end: 1.0).animate(CurvedAnimation(parent: c, curve: Curves.easeOut))).toList();
+    for (int i = 0; i < _count; i++) {
+      Future.delayed(Duration(milliseconds: 80 + i * 65), () { if (mounted) _ctrls[i].forward(); });
+    }
+  }
 
   List<_Feature> get _features => [
     _Feature('🌿', 'Garden',      const Color(0xFF4ADE80), (ctx) => GardenScreen(coupleId: widget.coupleId)),
@@ -471,49 +559,43 @@ class _FeatureHubState extends State<_FeatureHub> with TickerProviderStateMixin 
     _Feature('🌟', 'Dream Board', AppTheme.lavenderDusk,   (ctx) => DreamBoardScreen(coupleId: widget.coupleId)),
     _Feature('💬', 'Connect',     AppTheme.dawnAmber,      (ctx) => ConnectScreen(coupleId: widget.coupleId)),
     _Feature('🏆', 'Challenges',  AppTheme.warning,        (ctx) => ChallengesScreen(coupleId: widget.coupleId)),
-    _Feature('✨', 'AI Features', const Color(0xFFE05C7E), (ctx) => AiScreen(coupleId: widget.coupleId)),
+    _Feature('✨', 'AI',          const Color(0xFFE05C7E), (ctx) => AiScreen(coupleId: widget.coupleId)),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    final n = _features.length;
-    _ctrls  = List.generate(n, (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 360)));
-    _fades  = _ctrls.map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut)).toList();
-    _scales = _ctrls.map((c) => Tween(begin: 0.85, end: 1.0).animate(CurvedAnimation(parent: c, curve: Curves.easeOut))).toList();
-    for (int i = 0; i < n; i++) {
-      Future.delayed(Duration(milliseconds: 80 + i * 65), () { if (mounted) _ctrls[i].forward(); });
-    }
-  }
 
   @override
   void dispose() { for (final c in _ctrls) c.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    final features = _features;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
-        child: Text('Everything for you two', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.01)),
-      ),
-      SizedBox(
-        height: 118,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: features.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (_, i) => FadeTransition(
-            opacity: _fades[i],
-            child: ScaleTransition(
-              scale: _scales[i],
-              child: _FeatureCard(feature: features[i]),
-            ),
+    debugPrint('[_FeatureHub] build');
+    try {
+      final features = _features;
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
+          child: Text('Everything for you two', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        ),
+        SizedBox(
+          height: 118,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: features.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              if (i >= _fades.length || i >= _scales.length) return const SizedBox.shrink();
+              return FadeTransition(
+                opacity: _fades[i],
+                child: ScaleTransition(scale: _scales[i], child: _FeatureCard(feature: features[i])),
+              );
+            },
           ),
         ),
-      ),
-    ]);
+      ]);
+    } catch (e, s) {
+      debugPrint('[_FeatureHub] BUILD ERROR: $e\n$s');
+      return Text('FeatureHub error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+    }
   }
 }
 
@@ -527,8 +609,7 @@ class _Feature {
 class _FeatureCard extends StatefulWidget {
   final _Feature feature;
   const _FeatureCard({required this.feature});
-  @override
-  State<_FeatureCard> createState() => _FeatureCardState();
+  @override State<_FeatureCard> createState() => _FeatureCardState();
 }
 class _FeatureCardState extends State<_FeatureCard> {
   bool _pressed = false;
@@ -537,7 +618,10 @@ class _FeatureCardState extends State<_FeatureCard> {
     final f = widget.feature;
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) { setState(() => _pressed = false); Navigator.push(context, petalBloomRoute(builder: f.builder)); },
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        try { Navigator.push(context, petalBloomRoute(builder: f.builder)); } catch (e) { debugPrint('[_FeatureCard] nav: $e'); }
+      },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(scale: _pressed ? 0.93 : 1.0, duration: const Duration(milliseconds: 100),
         child: Container(width: 96,

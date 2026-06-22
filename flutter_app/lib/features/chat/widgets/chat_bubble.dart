@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme.dart';
 
+// Premium palette
+const _roseGold  = Color(0xFFE8A598);
+const _lavender  = Color(0xFFA78BFA);
+const _midnight  = Color(0xFF1B1836);
+const _moonWhite = Color(0xFFF8F6F2);
+
 bool isSpecialMessage(String content) {
   final lower = content.toLowerCase();
   return lower.contains('i love you') ||
@@ -29,41 +35,35 @@ class ChatBubble extends StatelessWidget {
     final special = isSpecialMessage(content);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          if (special)
-            _SpecialBubble(content: content, isMe: isMe)
-          else if (isMe)
-            _SentBubble(content: content, isQuickReply: isQuickReply)
-          else
-            _ReceivedBubble(content: content),
+      child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+        if (special)
+          _SpecialBubble(content: content, isMe: isMe)
+        else if (isMe)
+          _SentBubble(content: content, isQuickReply: isQuickReply)
+        else
+          _ReceivedBubble(content: content),
 
-          const SizedBox(height: 3),
-          Padding(
-            padding: EdgeInsets.only(left: isMe ? 0 : 14, right: isMe ? 14 : 0),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(
-                '${sentAt.hour.toString().padLeft(2, '0')}:${sentAt.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
-              ),
-              if (isMe) ...[
-                const SizedBox(width: 4),
-                Icon(
-                  readAt != null ? Icons.done_all : Icons.done,
-                  size: 12,
-                  color: readAt != null ? AppTheme.success : AppTheme.textMuted,
-                ),
-              ],
-            ]),
-          ),
-        ],
-      ),
+        const SizedBox(height: 3),
+        Padding(
+          padding: EdgeInsets.only(left: isMe ? 0 : 14, right: isMe ? 14 : 0),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(
+              '${sentAt.hour.toString().padLeft(2, '0')}:${sentAt.minute.toString().padLeft(2, '0')}',
+              style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+            ),
+            if (isMe) ...[
+              const SizedBox(width: 4),
+              Icon(readAt != null ? Icons.done_all : Icons.done, size: 12,
+                color: readAt != null ? AppTheme.success : AppTheme.textMuted),
+            ],
+          ]),
+        ),
+      ]),
     );
   }
 }
 
-// ─── Received Bubble (cloud shape with left tail) ─────────────────────────────
+// ─── Received Bubble — Glassmorphism frosted glass ───────────────────────────
 
 class _ReceivedBubble extends StatelessWidget {
   final String content;
@@ -75,33 +75,30 @@ class _ReceivedBubble extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
-        child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-          // Left tail
-          CustomPaint(
-            size: const Size(10, 18),
-            painter: _TailPainter(color: AppTheme.surface2, isLeft: true),
-          ),
-          Flexible(child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
-            decoration: BoxDecoration(
-              color: AppTheme.surface2,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-                bottomRight: Radius.circular(18),
-                bottomLeft: Radius.circular(4),
-              ),
-              border: Border.all(color: AppTheme.border.withValues(alpha: 0.5)),
+        child: Container(
+          margin: const EdgeInsets.only(right: 60),
+          padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+          decoration: BoxDecoration(
+            // Frosted semi-transparent layer (glassmorphism without blur for web perf)
+            color: _moonWhite.withValues(alpha: 0.06),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20), topRight: Radius.circular(20),
+              bottomRight: Radius.circular(20), bottomLeft: Radius.circular(5),
             ),
-            child: Text(content, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, height: 1.45)),
-          )),
-        ]),
+            border: Border.all(color: _lavender.withValues(alpha: 0.28), width: 1),
+            boxShadow: [
+              BoxShadow(color: _lavender.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 4)),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2)),
+            ],
+          ),
+          child: Text(content, style: const TextStyle(color: _moonWhite, fontSize: 15, height: 1.45)),
+        ),
       ),
     );
   }
 }
 
-// ─── Sent Bubble (love letter — gradient with right tail) ─────────────────────
+// ─── Sent Bubble — Rose gold gradient with glow edge ─────────────────────────
 
 class _SentBubble extends StatelessWidget {
   final String content;
@@ -114,97 +111,97 @@ class _SentBubble extends StatelessWidget {
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
-        child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Flexible(child: Container(
-            padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
-            decoration: BoxDecoration(
-              gradient: isQuickReply
-                  ? const LinearGradient(colors: [Color(0xFFB8449C), Color(0xFFE05C7E)], begin: Alignment.topLeft, end: Alignment.bottomRight)
-                  : const LinearGradient(colors: [Color(0xFFE8A598), Color(0xFFD47B8E)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-                bottomLeft: Radius.circular(18),
-                bottomRight: Radius.circular(4),
-              ),
-              boxShadow: [BoxShadow(color: const Color(0xFFE8A598).withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 3))],
+        child: Container(
+          margin: const EdgeInsets.only(left: 60),
+          padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+          decoration: BoxDecoration(
+            gradient: isQuickReply
+                ? const LinearGradient(colors: [Color(0xFFA78BFA), Color(0xFF7C5BE8)], begin: Alignment.topLeft, end: Alignment.bottomRight)
+                : const LinearGradient(colors: [_roseGold, Color(0xFFB8628E)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20), topRight: Radius.circular(20),
+              bottomLeft: Radius.circular(20), bottomRight: Radius.circular(5),
             ),
-            child: Text(content, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.45)),
-          )),
-          // Right tail
-          CustomPaint(
-            size: const Size(10, 18),
-            painter: _TailPainter(color: const Color(0xFFD47B8E), isLeft: false),
+            boxShadow: [
+              BoxShadow(
+                color: (isQuickReply ? _lavender : _roseGold).withValues(alpha: 0.40),
+                blurRadius: 16, offset: const Offset(0, 4), spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 6, offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ]),
+          child: Text(content, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.45)),
+        ),
       ),
     );
   }
 }
 
-// ─── Special Bubble (envelope for "I love you" / "I miss you") ───────────────
+// ─── Special Bubble — Lavender shimmer envelope (no golden) ──────────────────
 
 class _SpecialBubble extends StatefulWidget {
   final String content;
   final bool isMe;
   const _SpecialBubble({required this.content, required this.isMe});
-  @override
-  State<_SpecialBubble> createState() => _SpecialBubbleState();
+  @override State<_SpecialBubble> createState() => _SpecialBubbleState();
 }
 
 class _SpecialBubbleState extends State<_SpecialBubble> with SingleTickerProviderStateMixin {
-  late AnimationController _glimmer;
-  late Animation<double> _shimmerX;
+  late AnimationController _shimCtrl;
+  late Animation<double> _shimX;
 
   @override
   void initState() {
     super.initState();
-    _glimmer = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
-    _shimmerX = Tween(begin: -1.5, end: 1.5).animate(CurvedAnimation(parent: _glimmer, curve: Curves.easeInOut));
+    _shimCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
+    _shimX = Tween(begin: -1.5, end: 1.5).animate(CurvedAnimation(parent: _shimCtrl, curve: Curves.easeInOut));
   }
 
-  @override
-  void dispose() { _glimmer.dispose(); super.dispose(); }
+  @override void dispose() { _shimCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: AnimatedBuilder(
-        animation: _shimmerX,
+        animation: _shimX,
         builder: (_, __) => Container(
           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+          margin: EdgeInsets.only(
+            left: widget.isMe ? 40 : 0,
+            right: widget.isMe ? 0 : 40,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF3C98B).withValues(alpha: 0.5), width: 1.5),
+            border: Border.all(color: _lavender.withValues(alpha: 0.5), width: 1.5),
             gradient: LinearGradient(
-              begin: Alignment(_shimmerX.value, 0),
-              end: Alignment(_shimmerX.value + 1.2, 0.6),
-              colors: const [Color(0xFF2A1D00), Color(0xFF3D2A05), Color(0xFF2A1D00)],
+              begin: Alignment(_shimX.value, 0),
+              end: Alignment(_shimX.value + 1.2, 0.6),
+              colors: const [Color(0xFF160E28), Color(0xFF221540), Color(0xFF160E28)],
             ),
+            boxShadow: [BoxShadow(color: _lavender.withValues(alpha: 0.22), blurRadius: 20, offset: const Offset(0, 6))],
           ),
           child: Column(children: [
-            // Envelope flap decoration
+            // Envelope flap — lavender
             Container(
-              width: double.infinity,
-              height: 22,
+              width: double.infinity, height: 24,
               decoration: BoxDecoration(
-                color: const Color(0xFFF3C98B).withValues(alpha: 0.12),
+                color: _lavender.withValues(alpha: 0.10),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                border: const Border(bottom: BorderSide(color: Color(0xFFF3C98B), width: 0.5)),
+                border: Border(bottom: BorderSide(color: _lavender.withValues(alpha: 0.25))),
               ),
               child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('💌', style: TextStyle(fontSize: 11)),
+                Text('💌', style: TextStyle(fontSize: 12)),
               ]),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               child: Text(
                 widget.content,
-                style: const TextStyle(
-                  color: Color(0xFFF3C98B), fontSize: 16, height: 1.6,
-                  fontWeight: FontWeight.w500, letterSpacing: 0.02,
-                ),
+                style: TextStyle(color: _lavender.withValues(alpha: 0.95), fontSize: 16, height: 1.6, fontWeight: FontWeight.w500, letterSpacing: 0.02),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -213,32 +210,4 @@ class _SpecialBubbleState extends State<_SpecialBubble> with SingleTickerProvide
       ),
     );
   }
-}
-
-// ─── Tail Painter ─────────────────────────────────────────────────────────────
-
-class _TailPainter extends CustomPainter {
-  final Color color;
-  final bool isLeft;
-  const _TailPainter({required this.color, required this.isLeft});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final path = Path();
-    if (isLeft) {
-      path.moveTo(size.width, 0);
-      path.lineTo(0, size.height * 0.5);
-      path.lineTo(size.width, size.height);
-    } else {
-      path.moveTo(0, 0);
-      path.lineTo(size.width, size.height * 0.5);
-      path.lineTo(0, size.height);
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_TailPainter old) => old.color != color;
 }

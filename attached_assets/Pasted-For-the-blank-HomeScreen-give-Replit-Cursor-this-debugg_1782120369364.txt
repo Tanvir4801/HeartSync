@@ -1,0 +1,142 @@
+For the blank HomeScreen, give Replit/Cursor this debugging prompt first:
+
+You are a senior Flutter debugging engineer.
+
+The app launches and the bottom navigation bar appears, but the HomeScreen body is blank or the app crashes when opening HomeScreen.
+
+Tasks:
+
+1. Add debugPrint() statements to every widget in HomeScreen:
+    * HomeScreen
+    * _Header
+    * _DailySurprise
+    * _ClockRow
+    * _MoodSection
+    * _BatterySection
+    * _StreakSection
+    * _HugButtons
+    * _QuickActions
+    * _FeatureHub
+2. Wrap every StreamBuilder and FutureBuilder with error handling:
+    if (snapshot.hasError) return Text(snapshot.error.toString());
+3. Temporarily replace the HomeScreen slivers with a simple Text widget to verify navigation works.
+4. Check for:
+    * ProviderNotFoundException
+    * FirebaseException
+    * Firestore permission errors
+    * Timestamp casting errors
+    * Missing fonts
+    * Null values in Firestore
+5. Print the exact widget causing the crash.
+6. Do not redesign UI. Only identify the root cause and fix it.
+
+⸻
+
+For your HeartSync premium romantic chat redesign, use this prompt:
+
+You are a senior Flutter UI/UX designer from a top consumer app company.
+
+Redesign the HeartSync chat experience to feel like the most romantic couple app ever built.
+
+Design goals:
+
+* Luxury
+* Romantic
+* Emotional
+* Soft
+* Premium
+* Cute
+* Animated
+* Not childish
+* Not a WhatsApp clone
+
+Color palette:
+
+* Midnight Purple #1B1836
+* Rose Gold #E8A598
+* Soft Lavender #A78BFA
+* Champagne Gold #F3C98B
+* Moon White #F8F6F2
+
+Chat Experience:
+
+1. Living Background
+
+* Animated gradient sky
+* Floating particles
+* Fireflies at night
+* Slow moving stars
+* Soft glow effects
+
+2. Dynamic Love Atmosphere
+
+* Morning sunrise theme
+* Sunset theme
+* Night constellation theme
+* Anniversary special theme
+
+3. Romantic Message Bubbles
+
+* Glassmorphism
+* Soft gradients
+* Glow edges
+* Luxury shadows
+
+4. Couple Presence System
+
+* “Thinking about you…”
+* “Writing something special…”
+* “Missing you…”
+* Animated status indicators
+
+5. Love Energy System
+
+* Heartbeat animation
+* Couple connection meter
+* Interactive reactions
+
+6. Special Message Effects
+
+* Kiss animation
+* Hug animation
+* Flying rose petals
+* Sparkle trails
+* Butterfly effects
+
+7. Relationship Background Story
+
+* Shared tree growing over time
+* Constellation formed by couple milestones
+* Memory stars in sky
+
+8. Premium Typography
+
+* Fraunces for romantic headings
+* Inter for body
+* Elegant handwritten style for love letters
+
+9. Micro Animations
+
+* Smooth page transitions
+* Breathing buttons
+* Heartbeat pulse
+* Floating action elements
+
+10. Performance
+
+* 60fps animations
+* Optimized Flutter animations
+* Use CustomPainter where needed
+* Avoid lag on mid-range Android devices
+
+Generate complete Flutter widget structure, animation plan, UX flow, and screen hierarchy.
+
+My recommendation for HeartSync
+
+Instead of adding 100 features, focus on 3 things:
+
+1. 🌙 Beautiful animated chat background
+2. 💌 Love Capsules (future messages)
+3. ❤️ Touch Together (both press heart simultaneously)
+
+Those 3 features will make users remember the app more than 50 ordinary features.
