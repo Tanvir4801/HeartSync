@@ -1,0 +1,155 @@
+# HeartSync — Phase N+: Living Romantic Chat + Home Screen Deep Debug
+
+## Phase I-2 — Home screen deep debug (the last fix didn't resolve it — instrument, don't guess)
+
+```
+Home is still rendering blank after the Phase I fix. Stop guessing at causes and
+instrument the actual pipeline so the real failure point is visible:
+
+1. Add explicit debugPrint/console.log statements at every stage of Home's data
+   loading: (a) auth state resolved, with uid, (b) coupleId resolved from the user's
+   profile/auth claim, (c) the Firestore query about to execute, with the exact path,
+   (d) the stream's onData firing, with the document count received, (e) the stream's
+   onError firing, with the full error object printed, not just "error occurred."
+
+2. Run the app with the terminal/DevTools console visible (flutter run, or your
+   browser's console if this is the Flutter web build) and reproduce the blank Home
+   screen. Read the actual log sequence — it will show you exactly which of the 5 stages
+   above never fires, or fires with an error.
+
+3. If the logs show a Firestore error: paste the exact error message — "permission-
+   denied" means a rules issue, "failed-precondition" with an index link means a missing
+   composite index, anything else is a different bug entirely. Don't keep patching UI
+   loading states blindly; fix whichever specific stage the logs identify as broken.
+
+4. Once the real Home screen is confirmed working with live data, only then move to
+   Phase N below — don't build the new chat atmosphere on top of a codebase where you
+   don't yet trust the data layer.
+```
+
+---
+
+## Phase N — Atmosphere foundation (build this first — biggest visual impact, least complexity)
+
+```
+Refine the existing "Midnight Rose" theme tokens with these more precise values (same
+concept, tighter palette) and build the time-based sky system for Chat specifically:
+
+Tokens:
+- Midnight Purple #1B1836 — chat background base
+- Rose Gold #E8A598 — primary warm accent
+- Soft Lavender #A78BFA — tertiary accent, used for the "Missing You" mood state
+- Champagne Gold #F3C98B — premium/special-moment accent
+- Moon White #F8F6F2 — text on dark surfaces
+
+Dynamic Love Sky: the Chat screen's background shifts by time of day, checked once on
+screen load and re-checked every 15 minutes (not continuously):
+- Morning (5am-11am): soft peach gradient, a few slow-drifting bird-silhouette particles
+- Day (11am-5pm): keep it calm and quiet — this is the one window with NO extra
+  background motion, so the effect doesn't become wallpaper noise by midday
+- Evening (5pm-9pm): golden-orange gradient, slow-drifting petal particles
+- Night (9pm-5am): Midnight Purple gradient, star field, slow-moving cloud silhouettes
+
+Heartbeat glow: reuse the existing HeartbeatPulse wrapper from the design system phase,
+applied to a full-screen radial glow at very low opacity (5-8%) behind the message list
+— a 4-second double-beat cycle, barely perceptible, not a visible pulsing shape.
+
+Cap rule for this phase: only ONE ambient particle system active at a time on this
+screen (birds OR petals OR stars — never combined), and Day mode has none at all. This
+is your performance budget — everything added in later phases has to fit inside it, not
+stack on top of it.
+```
+
+---
+
+## Phase O — Bubble & typography redesign
+
+```
+1. Received messages: soft rounded "cloud" shape (irregular rounded edges, not a sharp
+   rectangle) — CustomPainter or a ClipPath with slightly randomized corner radii.
+2. Sent messages: a "love letter" shape — a rounded rectangle with one corner folded
+   like a letter flap, using a simple custom ClipPath.
+3. Voice notes: a cassette-tape-styled bubble — two small circles (reels) with a
+   connecting line, using the existing waveform UI inside it.
+4. Special messages (containing "I love you," "I miss you," or marked as a love note
+   share) render in a distinct envelope-shaped bubble.
+5. Add a new font role, specialMessageFace, separate from the existing Caveat
+   handwriting face used in opened letters: use Cormorant Garamond or Playfair Display
+   for these envelope/special bubbles specifically — an elegant serif, not handwriting,
+   reserved only for these flagged messages so it stays a moment, not the default look.
+```
+
+---
+
+## Phase P — Mood Atmosphere (unify Aura + Weather + Candle Mode into one controller)
+
+```
+Relationship Aura, Emotional Weather, and Candle Mode are three visual expressions of
+data you already have — don't build three separate listeners. Build one
+MoodAtmosphereController that reads the existing mood field (from Phase 1) plus the
+current time, and outputs one state object: { auraColors, weatherParticle, warmthLevel }.
+
+Mapping:
+- Happy -> Pink + Champagne Gold aura, no weather particle
+- Romantic -> Rose Gold + Soft Lavender aura, occasional petal drift
+- Missing You -> Soft Lavender + Midnight Purple aura, light rain particle, slowed pace
+- Excited -> Champagne Gold aura, sparkle particle
+
+Candle Mode is a time-bracket addition, not a separate system: after 10pm, whatever aura
+is active gets a warm amber overlay and the particle (if any) shifts to a slow candle-
+flicker effect instead of its daytime look — same controller, one more conditional.
+
+Same cap rule as Phase N: this mood particle is the ONE ambient system allowed at a
+time — it doesn't run alongside the Dynamic Love Sky's own particle, it replaces it when
+active. Build a simple priority order (mood particle overrides time-of-day particle when
+a strong mood is set) instead of layering both.
+```
+
+---
+
+## Phase Q — Heart Constellation (signature night effect) + petal/firefly reuse
+
+```
+1. Heart Constellation: within the Night sky state from Phase N, designate 7-8 of the
+   existing star particles' positions to form a faint heart silhouette. On a slow timer
+   (once every few minutes, not continuously), softly fade in thin connecting lines
+   between those specific stars, hold for a few seconds, then fade out. Reuses the
+   existing star field — don't build a second star system for this.
+2. Floating petals/fireflies: reuse the FloatingHeartsOverlay particle system already
+   built (Phase A), just swap the sprite from hearts to petals/fireflies/tiny-stars and
+   keep the same throttling/cap discipline — this is decoration variety, not a new
+   engine.
+```
+
+---
+
+## Phase R — Anniversary Mode
+
+```
+On the couple's stored anniversary date, Chat (and optionally Home) takes on a full
+golden takeover: Champagne Gold gradient, floating rose petals, sparkle particles, and a
+small memory-highlight card pinned above the message input showing a favorite photo from
+the timeline. Gate this purely on a date check against the existing anniversaryDate
+field — no new data needed. This is a once-a-year moment, so it's fine for it to be
+visually maximal in a way the daily screens shouldn't be.
+```
+
+---
+
+## Phase S — Delight extras (build only after N-R feel smooth on a real device)
+
+```
+1. Wishing Star: a tiny star occasionally appears (low frequency, random); tapping it
+   opens a "send a secret wish" composer that delivers to the partner later.
+2. Couple Mascot: a small corner character with a few expression states reacting to
+   recent mood/activity. Use Rive (not Lottie) for this specifically, since Rive's state
+   machines can blend expressions live based on a variable (current mood) rather than
+   just playing a fixed loop — same tooling recommendation as the Hug/Kiss screens, so
+   you're not maintaining two different animation engines.
+3. Butterfly Messages: detect "I love you" / "I miss you" phrases in a sent message and
+   play a one-shot butterfly-crossing-screen animation. Keep this genuinely rare — it
+   loses all impact if it fires on every message containing "love."
+4. Shared Tree: resolve the Garden overlap noted above before building this. If you
+   still want it, make it literally render Garden's existing growth/level value as a
+   background tree behind chat, not an independently tracked second growth metric.
+```
