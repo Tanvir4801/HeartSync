@@ -34,6 +34,7 @@ app.use('/api/support', adminMiddleware, require('./routes/support'));
 app.use('/api/analytics', adminMiddleware, require('./routes/analytics'));
 app.use('/api/audit', adminMiddleware, require('./routes/audit'));
 app.use('/api/gdpr', adminMiddleware, require('./routes/gdpr'));
+app.use('/api/revenue', adminMiddleware, require('./routes/revenue'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

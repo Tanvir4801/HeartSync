@@ -95,4 +95,7 @@ export const api = {
     export: (id) => request(`/gdpr/requests/${id}/export`, { method: 'POST' }),
     delete: (id) => request(`/gdpr/requests/${id}/delete`, { method: 'POST' }),
   },
+  revenue: {
+    events: () => request('/revenue/events'),
+  },
 };

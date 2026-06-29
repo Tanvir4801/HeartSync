@@ -36,7 +36,7 @@ export default function Analytics() {
   const [selectedWeek, setSelectedWeek] = useState(null);
 
   useEffect(() => {
-    Promise.all([api('/analytics/funnel'), api('/analytics/retention')])
+    Promise.all([api.analytics.funnel(), api.analytics.retention()])
       .then(([f, r]) => { setFunnel(f.funnel || []); setDropoff(f.dropoff || {}); setRetention(r.retention || []); })
       .finally(() => setLoading(false));
   }, []);

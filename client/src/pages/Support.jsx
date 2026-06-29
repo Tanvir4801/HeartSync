@@ -11,7 +11,7 @@ export default function Support() {
 
   useEffect(() => {
     setLoading(true);
-    api(`/support/tickets${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`)
+    api.support.tickets(statusFilter)
       .then(data => { setTickets(data); setSelected(null); })
       .finally(() => setLoading(false));
   }, [statusFilter]);
@@ -20,7 +20,7 @@ export default function Support() {
     if (!replyText.trim()) return;
     setSending(true);
     try {
-      await api(`/support/tickets/${id}/reply`, { method: 'POST', body: JSON.stringify({ message: replyText }) });
+      await api.support.reply(id, replyText);
       setReplyText('');
       setTickets(t => t.map(x => x.id === id ? { ...x, status: 'replied' } : x));
       if (selected?.id === id) setSelected(s => ({ ...s, status: 'replied' }));
@@ -29,7 +29,7 @@ export default function Support() {
   }
 
   async function setStatus(id, status) {
-    await api(`/support/tickets/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    await api.support.setStatus(id, status);
     setTickets(t => t.map(x => x.id === id ? { ...x, status } : x));
     if (selected?.id === id) setSelected(s => ({ ...s, status }));
   }

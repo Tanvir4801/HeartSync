@@ -18,8 +18,7 @@ export default function AuditLog() {
 
   useEffect(() => {
     setLoading(true);
-    const q = filter ? `?action=${filter}` : '';
-    api(`/audit${q}`).then(setLogs).finally(() => setLoading(false));
+    api.audit.list(filter).then(setLogs).finally(() => setLoading(false));
   }, [filter]);
 
   const s = styles;

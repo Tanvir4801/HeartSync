@@ -10,14 +10,13 @@ export default function GDPR() {
 
   useEffect(() => {
     setLoading(true);
-    const q = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
-    api(`/gdpr/requests${q}`).then(setRequests).finally(() => setLoading(false));
+    api.gdpr.requests(statusFilter).then(setRequests).finally(() => setLoading(false));
   }, [statusFilter]);
 
   async function handleExport(id) {
     setProcessing(p => ({ ...p, [id]: true }));
     try {
-      const r = await api(`/gdpr/requests/${id}/export`, { method: 'POST' });
+      const r = await api.gdpr.export(id);
       setResult(res => ({ ...res, [id]: `Exported: ${JSON.stringify(r.exportData)}` }));
       setRequests(reqs => reqs.map(x => x.id === id ? { ...x, status: 'completed' } : x));
     } catch (e) { setResult(res => ({ ...res, [id]: 'Error: ' + e.message })); }
@@ -28,7 +27,7 @@ export default function GDPR() {
     if (!confirm(`Permanently delete ALL data for couple ${coupleId}? This cannot be undone.`)) return;
     setProcessing(p => ({ ...p, [id]: true }));
     try {
-      await api(`/gdpr/requests/${id}/delete`, { method: 'POST' });
+      await api.gdpr.delete(id);
       setResult(res => ({ ...res, [id]: 'All couple data permanently deleted.' }));
       setRequests(reqs => reqs.map(x => x.id === id ? { ...x, status: 'completed' } : x));
     } catch (e) { setResult(res => ({ ...res, [id]: 'Error: ' + e.message })); }
