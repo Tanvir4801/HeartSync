@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 // ─── Romantic Theme System ────────────────────────────────────────────────────
 
-enum RomanticTheme { horizon, midnightBloom, goldenHour, northernLights }
+enum RomanticTheme { horizon, midnightBloom, goldenHour, northernLights, sweetheart }
 
 class HeartSyncThemeData {
   final RomanticTheme id;
@@ -17,17 +18,42 @@ class HeartSyncThemeData {
   final Color accent;
   final List<Color> gradient;
   final List<Color> heartColors;
+  // Light-theme / Sweetheart fields
+  final bool isLight;
+  final double cardRadius;
+  final Color textOnSurface;
+  final Color shimmerBase;
+  final Color shimmerHighlight;
+  // Badge palette (7 colours for FeatureCardCarousel)
+  final List<Color> badgeColors;
 
   const HeartSyncThemeData({
-    required this.id, required this.name, required this.emoji,
-    required this.background, required this.surface, required this.surface2,
-    required this.border, required this.primary, required this.secondary,
-    required this.accent, required this.gradient, required this.heartColors,
+    required this.id,
+    required this.name,
+    required this.emoji,
+    required this.background,
+    required this.surface,
+    required this.surface2,
+    required this.border,
+    required this.primary,
+    required this.secondary,
+    required this.accent,
+    required this.gradient,
+    required this.heartColors,
+    this.isLight = false,
+    this.cardRadius = 16,
+    this.textOnSurface = AppTheme.textPrimary,
+    this.shimmerBase = AppTheme.surface,
+    this.shimmerHighlight = AppTheme.surface2,
+    this.badgeColors = const [
+      Color(0xFF4ADE80), Color(0xFF9B8AC4), Color(0xFFE8927C),
+      Color(0xFF9B8AC4), Color(0xFFF2A65A), Color(0xFFFACC15), Color(0xFFE05C7E),
+    ],
   });
 }
 
 class AppTheme {
-  // ── Static tokens (Horizon default) ──────────────────────────────────────
+  // ── Static tokens (Horizon default / shared) ──────────────────────────────
   static const duskIndigo   = Color(0xFF1C1B33);
   static const inkDark      = Color(0xFF121022);
   static const dawnAmber    = Color(0xFFF2A65A);
@@ -45,6 +71,17 @@ class AppTheme {
   static const softPeach    = Color(0xFFFFB3C6);
   static const deepPurple   = Color(0xFF2D1B69);
 
+  // ── Sweetheart static tokens ─────────────────────────────────────────────
+  static const sweetLavenderPop  = Color(0xFF9B87F5);
+  static const sweetCoralBlush   = Color(0xFFFF9EB5);
+  static const sweetSunshine     = Color(0xFFFFD66B);
+  static const sweetSkyMint      = Color(0xFF8CE0C9);
+  static const sweetSoftPeach    = Color(0xFFFFC9A8);
+  static const sweetPlumInk      = Color(0xFF4A3B6B);
+  static const sweetCloudWhite   = Color(0xFFFFFBFE);
+  static const sweetLavMist      = Color(0xFFF3EFFF);
+  static const sweetBlushMist    = Color(0xFFFDEEF6);
+
   // ── Theme catalogue ───────────────────────────────────────────────────────
   static const Map<RomanticTheme, HeartSyncThemeData> themes = {
     RomanticTheme.horizon: HeartSyncThemeData(
@@ -55,7 +92,7 @@ class AppTheme {
       heartColors: [Color(0xFFF2A65A), Color(0xFFE8927C), Color(0xFFFFD4A0)],
     ),
     RomanticTheme.midnightBloom: HeartSyncThemeData(
-      id: RomanticTheme.midnightBloom, name: 'Midnight Bloom', emoji: '🌹',
+      id: RomanticTheme.midnightBloom, name: 'Midnight Rose', emoji: '🌹',
       background: Color(0xFF0D0D1A), surface: Color(0xFF1A1528), surface2: Color(0xFF231D35), border: Color(0xFF3D2B50),
       primary: Color(0xFFE05C7E), secondary: Color(0xFFB8449C), accent: Color(0xFFFFB3C6),
       gradient: [Color(0xFF0D0D1A), Color(0xFF1A0D2E), Color(0xFF0D0D1A)],
@@ -75,71 +112,159 @@ class AppTheme {
       gradient: [Color(0xFF080F1A), Color(0xFF0A1525), Color(0xFF080F1A)],
       heartColors: [Color(0xFF56CFE1), Color(0xFF9B5DE5), Color(0xFFAEEEF8)],
     ),
+    RomanticTheme.sweetheart: HeartSyncThemeData(
+      id: RomanticTheme.sweetheart, name: 'Sweetheart', emoji: '🍬',
+      background: Color(0xFFF3EFFF),
+      surface: Color(0xFFFFFBFE),
+      surface2: Color(0xFFF0EBFF),
+      border: Color(0xFFE2D9FF),
+      primary: Color(0xFF9B87F5),
+      secondary: Color(0xFFFF9EB5),
+      accent: Color(0xFFFFD66B),
+      gradient: [Color(0xFFF3EFFF), Color(0xFFFDEEF6), Color(0xFFF3EFFF)],
+      heartColors: [Color(0xFF9B87F5), Color(0xFFFF9EB5), Color(0xFFFFD66B)],
+      isLight: true,
+      cardRadius: 26,
+      textOnSurface: Color(0xFF4A3B6B),
+      shimmerBase: Color(0xFFE8E0FF),
+      shimmerHighlight: Color(0xFFF3EFFF),
+      badgeColors: [
+        Color(0xFF8CE0C9), Color(0xFF9B87F5), Color(0xFFFF9EB5),
+        Color(0xFFFFD66B), Color(0xFF8CE0C9), Color(0xFF9B87F5), Color(0xFFFF9EB5),
+      ],
+    ),
   };
 
   static HeartSyncThemeData themeData(RomanticTheme t) => themes[t]!;
 
-  static Color _hex(String h) {
-    final hex = h.replaceAll('#', '');
-    return Color(int.parse('FF$hex', radix: 16));
-  }
+  static ThemeData forThemeData(HeartSyncThemeData td) {
+    if (td.isLight) {
+      return ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: td.background,
+        colorScheme: ColorScheme.light(
+          primary: td.primary,
+          secondary: td.secondary,
+          surface: td.surface,
+          error: danger,
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: td.textOnSurface,
+        ),
+        fontFamily: 'Inter',
+        appBarTheme: AppBarTheme(
+          backgroundColor: td.background,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          titleTextStyle: TextStyle(color: td.textOnSurface, fontSize: 17, fontWeight: FontWeight.w700, fontFamily: 'Inter'),
+          iconTheme: IconThemeData(color: td.textOnSurface),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: td.surface,
+          indicatorColor: td.primary.withValues(alpha: 0.15),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: td.primary);
+            return TextStyle(fontSize: 11, color: td.textOnSurface.withValues(alpha: 0.5));
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return IconThemeData(color: td.primary, size: 22);
+            return IconThemeData(color: td.textOnSurface.withValues(alpha: 0.5), size: 22);
+          }),
+        ),
+        cardTheme: CardThemeData(
+          color: td.surface,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(td.cardRadius), side: BorderSide(color: td.border)),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true, fillColor: td.surface2,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(td.cardRadius), borderSide: BorderSide(color: td.border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(td.cardRadius), borderSide: BorderSide(color: td.border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(td.cardRadius), borderSide: BorderSide(color: td.primary, width: 2)),
+          hintStyle: TextStyle(color: td.textOnSurface.withValues(alpha: 0.45)),
+          labelStyle: TextStyle(color: td.textOnSurface.withValues(alpha: 0.55)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: td.primary, foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 54),
+            shape: const StadiumBorder(),
+            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            elevation: 0,
+          ),
+        ),
+        dividerTheme: DividerThemeData(color: td.border, thickness: 1),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: td.surface,
+          contentTextStyle: TextStyle(color: td.textOnSurface),
+        ),
+      );
+    }
 
-  static ThemeData dark([Map<String, dynamic>? themeTokens]) {
-    final bg  = themeTokens?['bg']       != null ? _hex(themeTokens!['bg'])       : duskIndigo;
-    final pri = themeTokens?['primary']  != null ? _hex(themeTokens!['primary'])  : dawnAmber;
-    final sec = themeTokens?['secondary']!= null ? _hex(themeTokens!['secondary']): horizonRose;
-
+    // Dark themes
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: bg,
+      scaffoldBackgroundColor: td.background,
       colorScheme: ColorScheme.dark(
-        primary: pri, secondary: sec, surface: surface, error: danger,
-        onPrimary: Colors.white, onSecondary: Colors.white, onSurface: textPrimary,
+        primary: td.primary,
+        secondary: td.secondary,
+        surface: td.surface,
+        error: danger,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: textPrimary,
       ),
       fontFamily: 'Inter',
       appBarTheme: AppBarTheme(
-        backgroundColor: bg, elevation: 0, surfaceTintColor: Colors.transparent,
-        titleTextStyle: const TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w600),
+        backgroundColor: td.background,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: const TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w600, fontFamily: 'Inter'),
         iconTheme: const IconThemeData(color: textPrimary),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
-        indicatorColor: pri.withValues(alpha: 0.15),
+        backgroundColor: td.surface,
+        indicatorColor: td.primary.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: pri);
+          if (states.contains(WidgetState.selected)) return TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: td.primary);
           return const TextStyle(fontSize: 11, color: textMuted);
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return IconThemeData(color: pri, size: 22);
+          if (states.contains(WidgetState.selected)) return IconThemeData(color: td.primary, size: 22);
           return const IconThemeData(color: textMuted, size: 22);
         }),
       ),
       cardTheme: CardThemeData(
-        color: surface, elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: border)),
+        color: td.surface, elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(td.cardRadius), side: BorderSide(color: td.border)),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: true, fillColor: surface2,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: pri, width: 2)),
-        hintStyle: const TextStyle(color: textMuted), labelStyle: const TextStyle(color: textMuted),
+        filled: true, fillColor: td.surface2,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: td.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: td.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: td.primary, width: 2)),
+        hintStyle: const TextStyle(color: textMuted),
+        labelStyle: const TextStyle(color: textMuted),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: pri, foregroundColor: Colors.white,
+          backgroundColor: td.primary, foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
-      dividerTheme: const DividerThemeData(color: border, thickness: 1),
-      snackBarTheme: const SnackBarThemeData(
+      dividerTheme: DividerThemeData(color: td.border, thickness: 1),
+      snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: surface2,
-        contentTextStyle: TextStyle(color: textPrimary),
+        backgroundColor: td.surface2,
+        contentTextStyle: const TextStyle(color: textPrimary),
       ),
     );
   }
@@ -153,6 +278,41 @@ class ThemeProvider extends ChangeNotifier {
   HeartSyncThemeData get data => AppTheme.themeData(_current);
 
   void setTheme(RomanticTheme t) { _current = t; notifyListeners(); }
+}
+
+// ─── Clay Card (Sweetheart claymorphism, falls back to standard on dark) ─────
+
+class ThemedCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final Color? overrideSurface;
+  const ThemedCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.overrideSurface});
+
+  @override
+  Widget build(BuildContext context) {
+    final td = context.watch<ThemeProvider>().data;
+    if (td.isLight) {
+      return Container(
+        decoration: BoxDecoration(
+          color: overrideSurface ?? td.surface,
+          borderRadius: BorderRadius.circular(td.cardRadius),
+          border: Border.all(color: td.border.withValues(alpha: 0.6)),
+          boxShadow: [
+            BoxShadow(color: td.primary.withValues(alpha: 0.12), blurRadius: 24, offset: const Offset(0, 8), spreadRadius: 0),
+          ],
+        ),
+        child: Padding(padding: padding, child: child),
+      );
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: overrideSurface ?? td.surface,
+        borderRadius: BorderRadius.circular(td.cardRadius),
+        border: Border.all(color: td.border),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
 }
 
 // ─── Widget Library ──────────────────────────────────────────────────────────
@@ -385,11 +545,13 @@ class _ConfettiPainter extends CustomPainter {
   bool shouldRepaint(_ConfettiPainter old) => true;
 }
 
-/// Shimmer loading placeholder
+/// Shimmer loading placeholder — theme-aware
 class ShimmerBox extends StatefulWidget {
   final double width, height;
   final double radius;
-  const ShimmerBox({super.key, required this.width, required this.height, this.radius = 8});
+  final Color? baseColor;
+  final Color? highlightColor;
+  const ShimmerBox({super.key, required this.width, required this.height, this.radius = 8, this.baseColor, this.highlightColor});
   @override
   State<ShimmerBox> createState() => _ShimmerBoxState();
 }
@@ -410,19 +572,24 @@ class _ShimmerBoxState extends State<ShimmerBox> with SingleTickerProviderStateM
   void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _anim,
-    builder: (_, __) => Container(
-      width: widget.width, height: widget.height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(widget.radius),
-        gradient: LinearGradient(
-          begin: Alignment(_anim.value, 0), end: Alignment(_anim.value + 1, 0),
-          colors: const [AppTheme.surface, AppTheme.surface2, AppTheme.surface],
+  Widget build(BuildContext context) {
+    final td = context.watch<ThemeProvider>().data;
+    final base = widget.baseColor ?? td.shimmerBase;
+    final hi   = widget.highlightColor ?? td.shimmerHighlight;
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        width: widget.width, height: widget.height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(widget.radius),
+          gradient: LinearGradient(
+            begin: Alignment(_anim.value, 0), end: Alignment(_anim.value + 1, 0),
+            colors: [base, hi, base],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Gradient glow button
@@ -431,18 +598,20 @@ class GlowButton extends StatelessWidget {
   final VoidCallback? onTap;
   final List<Color>? colors;
   final IconData? icon;
-  const GlowButton({super.key, required this.label, this.onTap, this.colors, this.icon});
+  final bool pill;
+  const GlowButton({super.key, required this.label, this.onTap, this.colors, this.icon, this.pill = false});
 
   @override
   Widget build(BuildContext context) {
     final cs = colors ?? const [AppTheme.dawnAmber, AppTheme.horizonRose];
+    final radius = pill ? 100.0 : 16.0;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 52, alignment: Alignment.center,
+        height: 54, alignment: Alignment.center,
         decoration: BoxDecoration(
           gradient: LinearGradient(colors: cs),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(radius),
           boxShadow: [BoxShadow(color: cs.first.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 6))],
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [

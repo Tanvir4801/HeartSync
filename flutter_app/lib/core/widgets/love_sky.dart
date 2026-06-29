@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme.dart';
 
 // ─── Sky Phase ────────────────────────────────────────────────────────────────
 
@@ -12,6 +14,13 @@ SkyPhase currentSkyPhase() {
   if (h >= 11 && h < 17) return SkyPhase.day;
   if (h >= 17 && h < 21) return SkyPhase.evening;
   return SkyPhase.night;
+}
+
+// Phase W: For Sweetheart theme, cap the sky at evening — never show the dark
+// night/star-field/constellation variant inside a light pastel theme.
+SkyPhase sweetheartSkyPhase() {
+  final p = currentSkyPhase();
+  return p == SkyPhase.night ? SkyPhase.evening : p;
 }
 
 // ─── Mood Aura (output from mood reading) ────────────────────────────────────
@@ -108,7 +117,21 @@ class _LoveSkyBackgroundState extends State<LoveSkyBackground> with TickerProvid
     super.dispose();
   }
 
-  List<Color> get _skyGradient {
+  List<Color> _skyGradientFor(bool isSweetheart) {
+    if (isSweetheart) {
+      // Phase W: Sweetheart only gets pastel morning/day/evening — no dark night sky
+      final phase = sweetheartSkyPhase();
+      if (widget.isAnniversary) {
+        return [const Color(0xFFFFF0F5), const Color(0xFFFFE8F0), const Color(0xFFFFF0F5)];
+      }
+      return switch (phase) {
+        SkyPhase.morning => [const Color(0xFFEEE9FF), const Color(0xFFFDE8F6), const Color(0xFFFFF3E0)],
+        SkyPhase.day     => [const Color(0xFFF3EFFF), const Color(0xFFFDEEF6)],
+        SkyPhase.evening => [const Color(0xFFFFE8F0), const Color(0xFFF3EFFF), const Color(0xFFFFECE5)],
+        SkyPhase.night   => [const Color(0xFFEEE9FF), const Color(0xFFFDE8F6), const Color(0xFFFFECE5)],
+      };
+    }
+
     if (widget.isAnniversary) return [const Color(0xFF1A1000), const Color(0xFF3D2800), const Color(0xFF1A1000)];
     return switch (widget.moodOverride) {
       MoodAura.missingYou => [const Color(0xFF0D0A1F), const Color(0xFF1B1836), const Color(0xFF1A0A2E)],
@@ -123,17 +146,31 @@ class _LoveSkyBackgroundState extends State<LoveSkyBackground> with TickerProvid
     };
   }
 
-  // Priority: anniversary > strong mood > sky time
-  // Only ONE particle system active at a time. Day sky has none.
-  Widget? get _particles {
-    if (widget.isAnniversary) return _AnniversaryParticles(ctrl: _particleCtrl);
+  // Phase W: Sweetheart particles are the daytime petals / sparkles only — no star field
+  Widget? _particlesFor(bool isSweetheart) {
+    if (isSweetheart) {
+      if (widget.isAnniversary) return _AnniversaryParticles(ctrl: _particleCtrl, sweetheart: true);
+      if (widget.moodOverride == MoodAura.romantic || widget.moodOverride == MoodAura.happy) {
+        return _PetalParticles(ctrl: _particleCtrl, sweetheart: true);
+      }
+      if (widget.moodOverride == MoodAura.excited) return _SparkleParticles(ctrl: _particleCtrl);
+      final phase = sweetheartSkyPhase();
+      return switch (phase) {
+        SkyPhase.morning => _BirdParticles(ctrl: _particleCtrl),
+        SkyPhase.evening => _PetalParticles(ctrl: _particleCtrl, sweetheart: true),
+        _ => null, // day/night → none for sweetheart
+      };
+    }
+
+    if (widget.isAnniversary) return _AnniversaryParticles(ctrl: _particleCtrl, sweetheart: false);
     if (widget.moodOverride == MoodAura.missingYou) return _RainParticles(ctrl: _particleCtrl);
-    if (widget.moodOverride == MoodAura.romantic || widget.moodOverride == MoodAura.happy) return _PetalParticles(ctrl: _particleCtrl);
+    if (widget.moodOverride == MoodAura.romantic || widget.moodOverride == MoodAura.happy) {
+      return _PetalParticles(ctrl: _particleCtrl, sweetheart: false);
+    }
     if (widget.moodOverride == MoodAura.excited) return _SparkleParticles(ctrl: _particleCtrl);
-    // Sky time particles — Day has none
     return switch (_phase) {
       SkyPhase.morning => _BirdParticles(ctrl: _particleCtrl),
-      SkyPhase.evening => _PetalParticles(ctrl: _particleCtrl),
+      SkyPhase.evening => _PetalParticles(ctrl: _particleCtrl, sweetheart: false),
       SkyPhase.night   => _StarField(
         ctrl: _particleCtrl,
         constellationCtrl: _constellationCtrl,
@@ -145,25 +182,34 @@ class _LoveSkyBackgroundState extends State<LoveSkyBackground> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final td = context.watch<ThemeProvider>().data;
+    final isSweetheart = td.isLight;
+    final gradient = _skyGradientFor(isSweetheart);
+    final particles = _particlesFor(isSweetheart);
+
     return Stack(children: [
       // Sky gradient
       Positioned.fill(child: AnimatedContainer(
         duration: const Duration(seconds: 3),
         decoration: BoxDecoration(gradient: LinearGradient(
           begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: _skyGradient,
+          colors: gradient,
         )),
       )),
 
       // ONE particle system
-      if (_particles != null) Positioned.fill(child: _particles!),
+      if (particles != null) Positioned.fill(child: particles),
 
-      // Mood aura overlay (very low opacity tint)
-      if (widget.moodOverride != MoodAura.none || widget.isAnniversary)
+      // Mood aura overlay
+      if (!isSweetheart && (widget.moodOverride != MoodAura.none || widget.isAnniversary))
         Positioned.fill(child: _MoodAuraOverlay(mood: widget.moodOverride, isAnniversary: widget.isAnniversary)),
 
-      // Candle mode: after 10pm, add warm amber tint
-      if (DateTime.now().hour >= 22)
+      // Sweetheart mood aura (lighter pastel tints)
+      if (isSweetheart && widget.moodOverride != MoodAura.none)
+        Positioned.fill(child: _SweetheartMoodAura(mood: widget.moodOverride, td: td)),
+
+      // Candle mode: after 10pm, add warm amber tint — only for dark themes
+      if (!isSweetheart && DateTime.now().hour >= 22)
         Positioned.fill(child: IgnorePointer(child: Container(
           color: const Color(0xFFF3C98B).withValues(alpha: 0.03),
         ))),
@@ -190,7 +236,6 @@ class _HeartbeatGlowState extends State<HeartbeatGlow> with SingleTickerProvider
   void initState() {
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 4));
-    // Double-beat cycle: beat → rest → beat → long rest
     _opacity = TweenSequence([
       TweenSequenceItem(tween: Tween(begin: 0.05, end: 0.08), weight: 7),
       TweenSequenceItem(tween: Tween(begin: 0.08, end: 0.05), weight: 8),
@@ -216,7 +261,7 @@ class _HeartbeatGlowState extends State<HeartbeatGlow> with SingleTickerProvider
   );
 }
 
-// ─── Mood Aura Overlay ───────────────────────────────────────────────────────
+// ─── Mood Aura Overlay (dark themes) ─────────────────────────────────────────
 
 class _MoodAuraOverlay extends StatelessWidget {
   final MoodAura mood;
@@ -241,6 +286,31 @@ class _MoodAuraOverlay extends StatelessWidget {
       colors: [_colors.first.withValues(alpha: 0.07), _colors.last.withValues(alpha: 0.03), Colors.transparent],
     )),
   ));
+}
+
+// ─── Sweetheart Mood Aura (pastel tints) ─────────────────────────────────────
+
+class _SweetheartMoodAura extends StatelessWidget {
+  final MoodAura mood;
+  final HeartSyncThemeData td;
+  const _SweetheartMoodAura({required this.mood, required this.td});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (mood) {
+      MoodAura.happy      => td.accent,
+      MoodAura.romantic   => td.secondary,
+      MoodAura.missingYou => td.primary,
+      MoodAura.excited    => td.accent,
+      MoodAura.none       => Colors.transparent,
+    };
+    return IgnorePointer(child: Container(
+      decoration: BoxDecoration(gradient: RadialGradient(
+        center: Alignment.topCenter, radius: 1.2,
+        colors: [color.withValues(alpha: 0.08), Colors.transparent],
+      )),
+    ));
+  }
 }
 
 // ─── Particle Systems ─────────────────────────────────────────────────────────
@@ -276,21 +346,24 @@ class _BirdPainter extends CustomPainter {
   @override bool shouldRepaint(_BirdPainter old) => old.t != t;
 }
 
-// Petals (evening + romantic/happy mood)
+// Petals — dark uses rose-peach; sweetheart uses lavender/coral
 class _PetalParticles extends StatelessWidget {
   final AnimationController ctrl;
-  const _PetalParticles({required this.ctrl});
+  final bool sweetheart;
+  const _PetalParticles({required this.ctrl, required this.sweetheart});
   @override
   Widget build(BuildContext context) => IgnorePointer(child: AnimatedBuilder(
     animation: ctrl,
-    builder: (_, __) => CustomPaint(painter: _PetalPainter(ctrl.value), size: Size.infinite),
+    builder: (_, __) => CustomPaint(painter: _PetalPainter(ctrl.value, sweetheart), size: Size.infinite),
   ));
 }
 
 class _PetalPainter extends CustomPainter {
   final double t;
-  _PetalPainter(this.t);
+  final bool sweetheart;
+  _PetalPainter(this.t, this.sweetheart);
   static const _petals = [(0.12, 0.3, 0.09, 1.2), (0.33, 0.7, 0.07, 0.8), (0.58, 0.1, 0.08, 1.5), (0.75, 0.5, 0.06, 1.0), (0.90, 0.25, 0.10, 0.9)];
+  static const _sweetColors = [Color(0xFFFF9EB5), Color(0xFF9B87F5), Color(0xFFFFD66B)];
   @override
   void paint(Canvas canvas, Size size) {
     for (int i = 0; i < _petals.length; i++) {
@@ -301,15 +374,17 @@ class _PetalPainter extends CustomPainter {
       canvas.save();
       canvas.translate(x, y);
       canvas.rotate(t * p.$4 * math.pi * 2);
-      canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 8, height: 5),
-        Paint()..color = const Color(0xFFE8A598).withValues(alpha: 0.38));
+      final color = sweetheart
+          ? _sweetColors[i % _sweetColors.length].withValues(alpha: 0.28)
+          : const Color(0xFFE8A598).withValues(alpha: 0.38);
+      canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 8, height: 5), Paint()..color = color);
       canvas.restore();
     }
   }
   @override bool shouldRepaint(_PetalPainter old) => old.t != t;
 }
 
-// Night stars + heart constellation
+// Night stars + heart constellation (dark themes only)
 class _StarField extends StatelessWidget {
   final AnimationController ctrl, constellationCtrl;
   final bool showConstellation;
@@ -329,19 +404,16 @@ class _StarPainter extends CustomPainter {
   _StarPainter(this.twinkle, this.constellationOpa);
   @override
   void paint(Canvas canvas, Size size) {
-    // Regular stars
     for (int i = 0; i < _regularStars.length; i++) {
       final pos = Offset(_regularStars[i].dx * size.width, _regularStars[i].dy * size.height);
       final t = 0.3 + (math.sin(twinkle * math.pi * 2 * (1 + i * 0.11) + i) * 0.28).abs();
       canvas.drawCircle(pos, 0.8 + (i % 3) * 0.45, Paint()..color = const Color(0xFFF8F6F2).withValues(alpha: t));
     }
-    // Constellation stars (brighter, rose-gold)
     for (final s in _constellationPoints) {
       final pos = Offset(s.dx * size.width, s.dy * size.height * 0.8);
       canvas.drawCircle(pos, 5.0, Paint()..color = const Color(0xFFE8A598).withValues(alpha: 0.15));
       canvas.drawCircle(pos, 2.2, Paint()..color = const Color(0xFFE8A598).withValues(alpha: 0.85));
     }
-    // Constellation connecting lines (fade in/out)
     if (constellationOpa > 0) {
       final lp = Paint()
         ..color = const Color(0xFFE8A598).withValues(alpha: constellationOpa * 0.35)
@@ -414,17 +486,19 @@ class _SparklePainter extends CustomPainter {
 // Anniversary golden petals
 class _AnniversaryParticles extends StatelessWidget {
   final AnimationController ctrl;
-  const _AnniversaryParticles({required this.ctrl});
+  final bool sweetheart;
+  const _AnniversaryParticles({required this.ctrl, required this.sweetheart});
   @override
   Widget build(BuildContext context) => IgnorePointer(child: AnimatedBuilder(
     animation: ctrl,
-    builder: (_, __) => CustomPaint(painter: _AnniversaryPainter(ctrl.value), size: Size.infinite),
+    builder: (_, __) => CustomPaint(painter: _AnniversaryPainter(ctrl.value, sweetheart), size: Size.infinite),
   ));
 }
 
 class _AnniversaryPainter extends CustomPainter {
   final double t;
-  _AnniversaryPainter(this.t);
+  final bool sweetheart;
+  _AnniversaryPainter(this.t, this.sweetheart);
   @override
   void paint(Canvas canvas, Size size) {
     for (int i = 0; i < 8; i++) {
@@ -433,8 +507,10 @@ class _AnniversaryPainter extends CustomPainter {
       canvas.save();
       canvas.translate(x, y);
       canvas.rotate(t * math.pi * 0.6 + i);
-      canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 10, height: 6),
-        Paint()..color = const Color(0xFFF3C98B).withValues(alpha: 0.45));
+      final color = sweetheart
+          ? const Color(0xFFFF9EB5).withValues(alpha: 0.45)
+          : const Color(0xFFF3C98B).withValues(alpha: 0.45);
+      canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 10, height: 6), Paint()..color = color);
       canvas.restore();
     }
   }

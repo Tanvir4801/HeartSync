@@ -2,4 +2,5 @@
 - [Firebase config split](firebase-config-split.md) — Two separate Firebase web app registrations: admin console uses appId cc0d6..., Flutter app uses appId 7b1bd4...
 - [Flutter build rules](flutter-build-rules.md) — critical package exclusions and compilation pitfalls for this project
 - [ThemeProvider wiring](theme-provider-wiring.md) — how ThemeProvider is integrated into main.dart and shell
+- [Theme system patterns](theme-system-patterns.md) — theme.dart must import provider.dart when widgets use context.watch; AppTheme.forThemeData() generates light vs dark ThemeData based on isLight flag
 - [IndexedStack screen caching](indexedstack-screen-caching.md) — screens must be built once in initState and cached; calling builders in build() recreates widgets every render causing blank screens

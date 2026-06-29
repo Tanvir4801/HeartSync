@@ -16,6 +16,8 @@ import '../../connect/screens/connect_screen.dart';
 import '../../gamification/screens/challenges_screen.dart';
 import '../../ai/screens/ai_screen.dart';
 
+// ── HomeScreen ────────────────────────────────────────────────────────────────
+
 class HomeScreen extends StatelessWidget {
   final String coupleId;
   const HomeScreen({super.key, required this.coupleId});
@@ -34,15 +36,23 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Header(coupleId: coupleId),
+                // Phase T: independent hero card — owns its own couple stream
+                GreetingHeroCard(coupleId: coupleId),
+                const SizedBox(height: 12),
+                // Phase T: 4-badge stat row — each badge owns its own data fetch
+                StatCardRow(coupleId: coupleId),
+                // Daily surprise (independent, unchanged)
                 _DailySurprise(coupleId: coupleId),
+                // Clock
                 _ClockRow(),
+                // Mood
                 _MoodSection(coupleId: coupleId, uid: uid),
-                _BatterySection(coupleId: coupleId),
-                _StreakSection(coupleId: coupleId),
+                // Hug buttons
                 _HugButtons(coupleId: coupleId, uid: uid),
+                // Quick actions
                 _QuickActions(coupleId: coupleId),
-                _FeatureHub(coupleId: coupleId),
+                // Phase T: renamed from _FeatureHub → FeatureCardCarousel
+                FeatureCardCarousel(coupleId: coupleId),
                 const SizedBox(height: 40),
               ],
             ),
@@ -62,55 +72,347 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ── Header ───────────────────────────────────────────────────────────────────
+// ── Phase T: GreetingHeroCard ─────────────────────────────────────────────────
+// Owns its own couple stream. Shows greeting + days together. Fully isolated —
+// if this stream fails it shows an error card; nothing else blanks.
 
-class _Header extends StatelessWidget {
+class GreetingHeroCard extends StatelessWidget {
   final String coupleId;
-  const _Header({required this.coupleId});
+  const GreetingHeroCard({super.key, required this.coupleId});
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h >= 5 && h < 12)  return 'Good morning! 🌅';
+    if (h >= 12 && h < 17) return 'Good afternoon! ☀️';
+    if (h >= 17 && h < 21) return 'Good evening! 🌙';
+    return 'Sweet dreams ahead 🌟';
+  }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[_Header] build');
+    debugPrint('[GreetingHeroCard] build');
     try {
       final td = context.watch<ThemeProvider>().data;
       return StreamBuilder<DocumentSnapshot>(
         stream: FirestoreService().coupleDoc(coupleId).snapshots(),
         builder: (_, snap) {
-          if (snap.hasError) {
-            debugPrint('[_Header] stream error: ${snap.error}');
+          if (snap.hasError) debugPrint('[GreetingHeroCard] stream error: ${snap.error}');
+
+          // Loading state — shimmer shaped like the card
+          if (snap.connectionState == ConnectionState.waiting) {
+            return _GreetingHeroShimmer(td: td);
           }
+
           Map<String, dynamic>? data;
-          try { data = snap.data?.data() as Map<String, dynamic>?; } catch (e) { debugPrint('[_Header] data cast: $e'); }
+          try { data = snap.data?.data() as Map<String, dynamic>?; } catch (e) {
+            debugPrint('[GreetingHeroCard] data cast: $e');
+          }
 
           DateTime? anniversary;
-          try { anniversary = (data?['anniversaryDate'] as Timestamp?)?.toDate(); } catch (e) { debugPrint('[_Header] anniversary cast: $e'); }
+          try { anniversary = (data?['anniversaryDate'] as Timestamp?)?.toDate(); } catch (e) {
+            debugPrint('[GreetingHeroCard] anniversary cast: $e');
+          }
 
-          final days = anniversary != null ? DateTime.now().difference(anniversary).inDays : 0;
-          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-              child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('HeartSync', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w500, letterSpacing: 0.08)),
-                  const SizedBox(height: 4),
-                  snap.connectionState == ConnectionState.waiting
-                      ? const ShimmerBox(width: 180, height: 28, radius: 6)
-                      : Text(
-                          anniversary != null ? '$days days together 💕' : 'Welcome home 💕',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: td.primary),
-                        ),
-                ])),
-                const HeartbeatPulse(child: Text('❤️', style: TextStyle(fontSize: 28))),
-              ]),
-            ),
-            HorizonLine(height: 2, colors: [td.primary, td.secondary]),
-          ]);
+          final days = anniversary != null ? DateTime.now().difference(anniversary).inDays : null;
+
+          return _GreetingHeroCardBody(td: td, days: days, greeting: _greeting());
         },
       );
     } catch (e, s) {
-      debugPrint('[_Header] BUILD ERROR: $e\n$s');
-      return Text('Header error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+      debugPrint('[GreetingHeroCard] BUILD ERROR: $e\n$s');
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Text('Greeting error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11)),
+      );
     }
+  }
+}
+
+class _GreetingHeroCardBody extends StatelessWidget {
+  final HeartSyncThemeData td;
+  final int? days;
+  final String greeting;
+  const _GreetingHeroCardBody({required this.td, required this.days, required this.greeting});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [td.primary.withValues(alpha: td.isLight ? 0.12 : 0.08), td.secondary.withValues(alpha: td.isLight ? 0.08 : 0.04)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(td.cardRadius),
+          border: Border.all(color: td.primary.withValues(alpha: 0.25)),
+          boxShadow: td.isLight ? [
+            BoxShadow(color: td.primary.withValues(alpha: 0.12), blurRadius: 20, offset: const Offset(0, 6)),
+          ] : [],
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              greeting,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: td.textOnSurface.withValues(alpha: td.isLight ? 0.6 : 0.7)),
+            ),
+            const SizedBox(height: 6),
+            days != null
+                ? Text(
+                    '$days days together 💕',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: td.primary, height: 1.2),
+                  )
+                : Text(
+                    'Welcome home 💕',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: td.primary, height: 1.2),
+                  ),
+            const SizedBox(height: 4),
+            Text(
+              'Every day with you counts',
+              style: TextStyle(fontSize: 11, color: td.textOnSurface.withValues(alpha: 0.45)),
+            ),
+          ])),
+          const SizedBox(width: 12),
+          HeartbeatPulse(
+            child: Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [td.primary, td.secondary]),
+                borderRadius: BorderRadius.circular(td.isLight ? 20 : 16),
+                boxShadow: [BoxShadow(color: td.primary.withValues(alpha: 0.35), blurRadius: 14, offset: const Offset(0, 4))],
+              ),
+              child: const Center(child: Text('❤️', style: TextStyle(fontSize: 26))),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _GreetingHeroShimmer extends StatelessWidget {
+  final HeartSyncThemeData td;
+  const _GreetingHeroShimmer({required this.td});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        height: 96,
+        decoration: BoxDecoration(
+          color: td.shimmerBase,
+          borderRadius: BorderRadius.circular(td.cardRadius),
+          border: Border.all(color: td.border),
+        ),
+        padding: const EdgeInsets.all(18),
+        child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+            ShimmerBox(width: 100, height: 12, radius: 6),
+            const SizedBox(height: 10),
+            ShimmerBox(width: 200, height: 20, radius: 6),
+          ])),
+          ShimmerBox(width: 56, height: 56, radius: td.isLight ? 20 : 16),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Phase T: StatCardRow ──────────────────────────────────────────────────────
+// 4 independent badge cards — each owns its own data. One failing stream
+// cannot blank the others.
+
+class StatCardRow extends StatelessWidget {
+  final String coupleId;
+  const StatCardRow({super.key, required this.coupleId});
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('[StatCardRow] build');
+    try {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(children: [
+          Expanded(child: _DaysStatBadge(coupleId: coupleId)),
+          const SizedBox(width: 10),
+          Expanded(child: _StreakStatBadge(coupleId: coupleId)),
+          const SizedBox(width: 10),
+          Expanded(child: _MemoriesStatBadge(coupleId: coupleId)),
+          const SizedBox(width: 10),
+          Expanded(child: _BatteryStatBadge(coupleId: coupleId)),
+        ]),
+      );
+    } catch (e, s) {
+      debugPrint('[StatCardRow] BUILD ERROR: $e\n$s');
+      return const SizedBox.shrink();
+    }
+  }
+}
+
+class _StatBadgeCard extends StatelessWidget {
+  final String emoji;
+  final String value;
+  final String label;
+  final Color badgeColor;
+  final bool loading;
+  const _StatBadgeCard({
+    required this.emoji, required this.value,
+    required this.label, required this.badgeColor, this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final td = context.watch<ThemeProvider>().data;
+    return Container(
+      decoration: BoxDecoration(
+        color: td.surface,
+        borderRadius: BorderRadius.circular(td.cardRadius),
+        border: Border.all(color: td.border),
+        boxShadow: td.isLight ? [
+          BoxShadow(color: badgeColor.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 6)),
+        ] : [],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      child: loading
+          ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              ShimmerBox(width: 38, height: 38, radius: 12),
+              const SizedBox(height: 6),
+              ShimmerBox(width: 30, height: 14, radius: 6),
+              const SizedBox(height: 4),
+              ShimmerBox(width: 40, height: 10, radius: 5),
+            ])
+          : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(12)),
+                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+              ),
+              const SizedBox(height: 6),
+              Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: td.textOnSurface, height: 1.1)),
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(fontSize: 9, color: td.textOnSurface.withValues(alpha: 0.5), fontWeight: FontWeight.w500), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
+    );
+  }
+}
+
+class _DaysStatBadge extends StatelessWidget {
+  final String coupleId;
+  const _DaysStatBadge({required this.coupleId});
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('[_DaysStatBadge] build');
+    final td = context.watch<ThemeProvider>().data;
+    final color = td.isLight ? AppTheme.sweetLavenderPop : AppTheme.lavenderDusk;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirestoreService().coupleDoc(coupleId).snapshots(),
+      builder: (_, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _StatBadgeCard(emoji: '🗓️', value: '--', label: 'Days', badgeColor: color, loading: true);
+        }
+        if (snap.hasError) {
+          debugPrint('[_DaysStatBadge] error: ${snap.error}');
+          return _StatBadgeCard(emoji: '🗓️', value: '--', label: 'Days', badgeColor: color);
+        }
+        DateTime? anniversary;
+        try {
+          final d = snap.data?.data() as Map<String, dynamic>?;
+          anniversary = (d?['anniversaryDate'] as Timestamp?)?.toDate();
+        } catch (e) { debugPrint('[_DaysStatBadge] cast: $e'); }
+        final days = anniversary != null ? DateTime.now().difference(anniversary).inDays : 0;
+        return _StatBadgeCard(emoji: '🗓️', value: '$days', label: 'Days', badgeColor: color);
+      },
+    );
+  }
+}
+
+class _StreakStatBadge extends StatelessWidget {
+  final String coupleId;
+  const _StreakStatBadge({required this.coupleId});
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('[_StreakStatBadge] build');
+    final td = context.watch<ThemeProvider>().data;
+    final color = td.isLight ? AppTheme.sweetSunshine : AppTheme.warning;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirestoreService().coupleDoc(coupleId).snapshots(),
+      builder: (_, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _StatBadgeCard(emoji: '🔥', value: '--', label: 'Streak', badgeColor: color, loading: true);
+        }
+        if (snap.hasError) {
+          debugPrint('[_StreakStatBadge] error: ${snap.error}');
+          return _StatBadgeCard(emoji: '🔥', value: '--', label: 'Streak', badgeColor: color);
+        }
+        int streak = 0;
+        try {
+          final d = snap.data?.data() as Map<String, dynamic>?;
+          streak = (d?['streak'] as num?)?.toInt() ?? 0;
+        } catch (e) { debugPrint('[_StreakStatBadge] cast: $e'); }
+        return _StatBadgeCard(emoji: '🔥', value: '$streak', label: 'Streak', badgeColor: color);
+      },
+    );
+  }
+}
+
+class _MemoriesStatBadge extends StatelessWidget {
+  final String coupleId;
+  const _MemoriesStatBadge({required this.coupleId});
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('[_MemoriesStatBadge] build');
+    final td = context.watch<ThemeProvider>().data;
+    final color = td.isLight ? AppTheme.sweetCoralBlush : AppTheme.horizonRose;
+    return FutureBuilder<QuerySnapshot>(
+      future: FirestoreService().sub(coupleId, 'memories').get(),
+      builder: (_, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _StatBadgeCard(emoji: '📸', value: '--', label: 'Memories', badgeColor: color, loading: true);
+        }
+        if (snap.hasError) {
+          debugPrint('[_MemoriesStatBadge] error: ${snap.error}');
+          return _StatBadgeCard(emoji: '📸', value: '--', label: 'Memories', badgeColor: color);
+        }
+        final count = snap.data?.docs.length ?? 0;
+        return _StatBadgeCard(emoji: '📸', value: '$count', label: 'Memories', badgeColor: color);
+      },
+    );
+  }
+}
+
+class _BatteryStatBadge extends StatelessWidget {
+  final String coupleId;
+  const _BatteryStatBadge({required this.coupleId});
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('[_BatteryStatBadge] build');
+    final td = context.watch<ThemeProvider>().data;
+    final color = td.isLight ? AppTheme.sweetSkyMint : AppTheme.success;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirestoreService().sub(coupleId, 'battery').doc('current').snapshots(),
+      builder: (_, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _StatBadgeCard(emoji: '🔋', value: '--', label: 'Battery', badgeColor: color, loading: true);
+        }
+        if (snap.hasError) {
+          debugPrint('[_BatteryStatBadge] error: ${snap.error}');
+          return _StatBadgeCard(emoji: '🔋', value: '--', label: 'Battery', badgeColor: color);
+        }
+        int level = 50;
+        try {
+          final d = snap.data?.data() as Map<String, dynamic>?;
+          level = (d?['level'] as num?)?.toInt() ?? 50;
+        } catch (e) { debugPrint('[_BatteryStatBadge] cast: $e'); }
+        return _StatBadgeCard(emoji: '🔋', value: '$level%', label: 'Battery', badgeColor: color);
+      },
+    );
   }
 }
 
@@ -155,15 +457,15 @@ class _DailySurpriseState extends State<_DailySurprise> {
                   padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: [td.primary.withValues(alpha: 0.10), td.secondary.withValues(alpha: 0.06)]),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(td.cardRadius),
                     border: Border.all(color: td.primary.withValues(alpha: 0.3)),
                   ),
                   child: Row(children: [
                     const Text('✨', style: TextStyle(fontSize: 22)),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(_todayMsg, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.45))),
+                    Expanded(child: Text(_todayMsg, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.45, color: td.textOnSurface))),
                     IconButton(
-                      icon: const Icon(Icons.close, size: 15, color: AppTheme.textMuted),
+                      icon: Icon(Icons.close, size: 15, color: td.textOnSurface.withValues(alpha: 0.4)),
                       onPressed: () { _seenDay[widget.coupleId] = DateTime.now().day; setState(() => _dismissed = true); },
                       padding: EdgeInsets.zero, constraints: const BoxConstraints(),
                     ),
@@ -174,15 +476,15 @@ class _DailySurpriseState extends State<_DailySurprise> {
                   onTap: () => setState(() => _revealed = true),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                    decoration: BoxDecoration(color: td.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: td.border)),
+                    decoration: BoxDecoration(color: td.surface, borderRadius: BorderRadius.circular(td.cardRadius), border: Border.all(color: td.border)),
                     child: Row(children: [
                       const Text('🎁', style: TextStyle(fontSize: 22)),
                       const SizedBox(width: 12),
-                      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Daily surprise', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        Text('Tap to reveal today\'s message', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Daily surprise', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: td.textOnSurface)),
+                        Text('Tap to reveal today\'s message', style: TextStyle(fontSize: 11, color: td.textOnSurface.withValues(alpha: 0.45))),
                       ])),
-                      Icon(Icons.chevron_right, color: AppTheme.textMuted.withValues(alpha: 0.5), size: 16),
+                      Icon(Icons.chevron_right, color: td.textOnSurface.withValues(alpha: 0.3), size: 16),
                     ]),
                   ),
                 ),
@@ -206,15 +508,21 @@ class _ClockRow extends StatelessWidget {
       final td = context.watch<ThemeProvider>().data;
       String fmt(DateTime t) => '${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Card(child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: td.surface,
+            borderRadius: BorderRadius.circular(td.cardRadius),
+            border: Border.all(color: td.border),
+            boxShadow: td.isLight ? [BoxShadow(color: td.primary.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))] : [],
+          ),
           padding: const EdgeInsets.all(14),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            _ClockBlock(label: 'Your Time', time: fmt(now), color: td.primary),
-            Column(children: [HorizonLine(height: 2), const SizedBox(height: 4), const Text('❤️', style: TextStyle(fontSize: 16))]),
-            _ClockBlock(label: "Partner's Time", time: fmt(now.toUtc().add(const Duration(hours: 2))), color: td.primary),
+            _ClockBlock(label: 'Your Time', time: fmt(now), color: td.primary, textColor: td.textOnSurface),
+            Column(children: [HorizonLine(height: 2, colors: [td.primary, td.secondary]), const SizedBox(height: 4), const Text('❤️', style: TextStyle(fontSize: 16))]),
+            _ClockBlock(label: "Partner's Time", time: fmt(now.toUtc().add(const Duration(hours: 2))), color: td.primary, textColor: td.textOnSurface),
           ]),
-        )),
+        ),
       );
     } catch (e, s) {
       debugPrint('[_ClockRow] BUILD ERROR: $e\n$s');
@@ -225,11 +533,11 @@ class _ClockRow extends StatelessWidget {
 
 class _ClockBlock extends StatelessWidget {
   final String label, time;
-  final Color color;
-  const _ClockBlock({required this.label, required this.time, required this.color});
+  final Color color, textColor;
+  const _ClockBlock({required this.label, required this.time, required this.color, required this.textColor});
   @override
   Widget build(BuildContext context) => Column(children: [
-    Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+    Text(label, style: TextStyle(fontSize: 10, color: textColor.withValues(alpha: 0.45))),
     const SizedBox(height: 3),
     Text(time, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color, fontFamily: 'monospace')),
   ]);
@@ -266,11 +574,17 @@ class _MoodSectionState extends State<_MoodSection> {
     try {
       final td = context.watch<ThemeProvider>().data;
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Card(child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: td.surface,
+            borderRadius: BorderRadius.circular(td.cardRadius),
+            border: Border.all(color: td.border),
+            boxShadow: td.isLight ? [BoxShadow(color: td.secondary.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))] : [],
+          ),
           padding: const EdgeInsets.all(14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Today\'s Mood', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
+            Text('Today\'s Mood', style: TextStyle(fontSize: 11, color: td.textOnSurface.withValues(alpha: 0.5), fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -289,136 +603,11 @@ class _MoodSectionState extends State<_MoodSection> {
               )).toList(),
             ),
           ]),
-        )),
+        ),
       );
     } catch (e, s) {
       debugPrint('[_MoodSection] BUILD ERROR: $e\n$s');
       return Text('Mood error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
-    }
-  }
-}
-
-// ── Battery Section ───────────────────────────────────────────────────────────
-
-class _BatterySection extends StatelessWidget {
-  final String coupleId;
-  const _BatterySection({required this.coupleId});
-
-  @override
-  Widget build(BuildContext context) {
-    debugPrint('[_BatterySection] build');
-    try {
-      final td = context.watch<ThemeProvider>().data;
-      return StreamBuilder<DocumentSnapshot>(
-        stream: FirestoreService().sub(coupleId, 'battery').doc('current').snapshots(),
-        builder: (_, snap) {
-          if (snap.hasError) {
-            debugPrint('[_BatterySection] error: ${snap.error}');
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Card(child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(children: [
-                  const Text('🔋', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 10),
-                  const Expanded(child: Text('Love Battery', style: TextStyle(fontWeight: FontWeight.w600))),
-                  Text('—', style: TextStyle(color: AppTheme.textMuted)),
-                ]),
-              )),
-            );
-          }
-          int level = 50;
-          try {
-            final d = snap.data?.data() as Map<String, dynamic>?;
-            level = (d?['level'] as num?)?.toInt() ?? 50;
-          } catch (e) { debugPrint('[_BatterySection] level cast: $e'); }
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Card(child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Text('Love Battery', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
-                  const Spacer(),
-                  Text('$level%', style: TextStyle(fontWeight: FontWeight.w700, color: td.primary, fontSize: 13)),
-                ]),
-                const SizedBox(height: 10),
-                HorizonLine(progress: level / 100, height: 8, colors: [td.primary, td.secondary]),
-              ]),
-            )),
-          );
-        },
-      );
-    } catch (e, s) {
-      debugPrint('[_BatterySection] BUILD ERROR: $e\n$s');
-      return Text('Battery error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
-    }
-  }
-}
-
-// ── Streak Section ────────────────────────────────────────────────────────────
-
-class _StreakSection extends StatelessWidget {
-  final String coupleId;
-  const _StreakSection({required this.coupleId});
-
-  @override
-  Widget build(BuildContext context) {
-    debugPrint('[_StreakSection] build');
-    try {
-      final td = context.watch<ThemeProvider>().data;
-      return StreamBuilder<DocumentSnapshot>(
-        stream: FirestoreService().coupleDoc(coupleId).snapshots(),
-        builder: (_, snap) {
-          if (snap.hasError) {
-            debugPrint('[_StreakSection] error: ${snap.error}');
-            return const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Text('Streak unavailable', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
-            );
-          }
-          int streak = 0;
-          try {
-            final d = snap.data?.data() as Map<String, dynamic>?;
-            streak = (d?['streak'] as num?)?.toInt() ?? 0;
-          } catch (e) { debugPrint('[_StreakSection] streak cast: $e'); }
-          final isEvening = DateTime.now().hour >= 20;
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Card(child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(children: [
-                Row(children: [
-                  Container(width: 44, height: 44,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [td.primary, td.secondary]), borderRadius: BorderRadius.circular(12)),
-                    child: const Center(child: Text('🔥', style: TextStyle(fontSize: 22))),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('$streak day streak', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                    const Text('Both act daily to keep it alive', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
-                  ])),
-                ]),
-                if (isEvening && streak > 0) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.07), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3))),
-                    child: const Row(children: [
-                      Text('🌙', style: TextStyle(fontSize: 13)),
-                      SizedBox(width: 8),
-                      Expanded(child: Text('Say good night before today ends to protect your streak', style: TextStyle(fontSize: 11, color: AppTheme.warning, height: 1.4))),
-                    ]),
-                  ),
-                ],
-              ]),
-            )),
-          );
-        },
-      );
-    } catch (e, s) {
-      debugPrint('[_StreakSection] BUILD ERROR: $e\n$s');
-      return Text('Streak error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
     }
   }
 }
@@ -450,19 +639,25 @@ class _HugButtons extends StatelessWidget {
     try {
       final td = context.watch<ThemeProvider>().data;
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Card(child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: td.surface,
+            borderRadius: BorderRadius.circular(td.cardRadius),
+            border: Border.all(color: td.border),
+            boxShadow: td.isLight ? [BoxShadow(color: td.primary.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))] : [],
+          ),
           padding: const EdgeInsets.all(14),
           child: Column(children: [
-            const Text('Send', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
+            Text('Send', style: TextStyle(fontSize: 11, color: td.textOnSurface.withValues(alpha: 0.5), fontWeight: FontWeight.w600)),
             const SizedBox(height: 14),
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
               HeartButton(size: 64, color: td.primary, label: 'Hug', onPressed: () => _send(context, 'hug'), child: const Text('🤗', style: TextStyle(fontSize: 26))),
               HeartButton(size: 64, color: td.secondary, label: 'Kiss', onPressed: () => _send(context, 'kiss'), child: const Text('💋', style: TextStyle(fontSize: 26))),
-              HeartButton(size: 64, color: AppTheme.lavenderDusk, label: 'Miss You', onPressed: () => _send(context, 'miss'), child: const Text('💭', style: TextStyle(fontSize: 26))),
+              HeartButton(size: 64, color: td.accent, label: 'Miss You', onPressed: () => _send(context, 'miss'), child: const Text('💭', style: TextStyle(fontSize: 26))),
             ]),
           ]),
-        )),
+        ),
       );
     } catch (e, s) {
       debugPrint('[_HugButtons] BUILD ERROR: $e\n$s');
@@ -483,7 +678,7 @@ class _QuickActions extends StatelessWidget {
     try {
       final td = context.watch<ThemeProvider>().data;
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
         child: Row(children: [
           Expanded(child: _ActionCard(icon: Icons.add_photo_alternate_outlined, label: 'Add Memory', color: td.primary,
             onTap: () { try { Navigator.push(context, petalBloomRoute(builder: (_) => AddMemoryScreen(coupleId: coupleId))); } catch (e) { debugPrint('[_QuickActions] nav error: $e'); } })),
@@ -510,32 +705,41 @@ class _ActionCard extends StatefulWidget {
 class _ActionCardState extends State<_ActionCard> {
   bool _pressed = false;
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTapDown: (_) => setState(() => _pressed = true),
-    onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
-    onTapCancel: () => setState(() => _pressed = false),
-    child: AnimatedScale(scale: _pressed ? 0.96 : 1.0, duration: const Duration(milliseconds: 100),
-      child: Container(padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16), border: Border.all(color: widget.color.withValues(alpha: 0.25))),
-        child: Column(children: [
-          Icon(widget.icon, color: widget.color, size: 26),
-          const SizedBox(height: 8),
-          Text(widget.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: widget.color)),
-        ]),
+  Widget build(BuildContext context) {
+    final td = context.watch<ThemeProvider>().data;
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(scale: _pressed ? 0.96 : 1.0, duration: const Duration(milliseconds: 100),
+        child: Container(padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: widget.color.withValues(alpha: td.isLight ? 0.10 : 0.08),
+            borderRadius: BorderRadius.circular(td.cardRadius),
+            border: Border.all(color: widget.color.withValues(alpha: 0.25)),
+            boxShadow: td.isLight ? [BoxShadow(color: widget.color.withValues(alpha: 0.10), blurRadius: 12, offset: const Offset(0, 4))] : [],
+          ),
+          child: Column(children: [
+            Icon(widget.icon, color: widget.color, size: 26),
+            const SizedBox(height: 8),
+            Text(widget.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: widget.color)),
+          ]),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-// ── Feature Hub ───────────────────────────────────────────────────────────────
+// ── Phase T: FeatureCardCarousel (was _FeatureHub) ────────────────────────────
+// Independent widget — if one card fails to tap it logs but doesn't crash others.
 
-class _FeatureHub extends StatefulWidget {
+class FeatureCardCarousel extends StatefulWidget {
   final String coupleId;
-  const _FeatureHub({required this.coupleId});
-  @override State<_FeatureHub> createState() => _FeatureHubState();
+  const FeatureCardCarousel({super.key, required this.coupleId});
+  @override State<FeatureCardCarousel> createState() => _FeatureCardCarouselState();
 }
 
-class _FeatureHubState extends State<_FeatureHub> with TickerProviderStateMixin {
+class _FeatureCardCarouselState extends State<FeatureCardCarousel> with TickerProviderStateMixin {
   late List<AnimationController> _ctrls;
   late List<Animation<double>> _fades, _scales;
   static const _count = 7;
@@ -543,7 +747,7 @@ class _FeatureHubState extends State<_FeatureHub> with TickerProviderStateMixin 
   @override
   void initState() {
     super.initState();
-    debugPrint('[_FeatureHub] initState');
+    debugPrint('[FeatureCardCarousel] initState');
     _ctrls  = List.generate(_count, (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 360)));
     _fades  = _ctrls.map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut)).toList();
     _scales = _ctrls.map((c) => Tween(begin: 0.85, end: 1.0).animate(CurvedAnimation(parent: c, curve: Curves.easeOut))).toList();
@@ -552,14 +756,14 @@ class _FeatureHubState extends State<_FeatureHub> with TickerProviderStateMixin 
     }
   }
 
-  List<_Feature> get _features => [
-    _Feature('🌿', 'Garden',      const Color(0xFF4ADE80), (ctx) => GardenScreen(coupleId: widget.coupleId)),
-    _Feature('📖', 'Our Story',   AppTheme.lavenderDusk,   (ctx) => MilestonesScreen(coupleId: widget.coupleId)),
-    _Feature('🙏', 'Gratitude',   AppTheme.horizonRose,    (ctx) => GratitudeScreen(coupleId: widget.coupleId)),
-    _Feature('🌟', 'Dream Board', AppTheme.lavenderDusk,   (ctx) => DreamBoardScreen(coupleId: widget.coupleId)),
-    _Feature('💬', 'Connect',     AppTheme.dawnAmber,      (ctx) => ConnectScreen(coupleId: widget.coupleId)),
-    _Feature('🏆', 'Challenges',  AppTheme.warning,        (ctx) => ChallengesScreen(coupleId: widget.coupleId)),
-    _Feature('✨', 'AI',          const Color(0xFFE05C7E), (ctx) => AiScreen(coupleId: widget.coupleId)),
+  List<_Feature> _features(HeartSyncThemeData td) => [
+    _Feature('🌿', 'Garden',      td.badgeColors[0], (ctx) => GardenScreen(coupleId: widget.coupleId)),
+    _Feature('📖', 'Our Story',   td.badgeColors[1], (ctx) => MilestonesScreen(coupleId: widget.coupleId)),
+    _Feature('🙏', 'Gratitude',   td.badgeColors[2], (ctx) => GratitudeScreen(coupleId: widget.coupleId)),
+    _Feature('🌟', 'Dream Board', td.badgeColors[3], (ctx) => DreamBoardScreen(coupleId: widget.coupleId)),
+    _Feature('💬', 'Connect',     td.badgeColors[4], (ctx) => ConnectScreen(coupleId: widget.coupleId)),
+    _Feature('🏆', 'Challenges',  td.badgeColors[5], (ctx) => ChallengesScreen(coupleId: widget.coupleId)),
+    _Feature('✨', 'AI',          td.badgeColors[6], (ctx) => AiScreen(coupleId: widget.coupleId)),
   ];
 
   @override
@@ -567,13 +771,14 @@ class _FeatureHubState extends State<_FeatureHub> with TickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[_FeatureHub] build');
+    debugPrint('[FeatureCardCarousel] build');
     try {
-      final features = _features;
+      final td = context.watch<ThemeProvider>().data;
+      final features = _features(td);
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
-          child: Text('Everything for you two', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+          child: Text('Everything for you two', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: td.textOnSurface)),
         ),
         SizedBox(
           height: 118,
@@ -586,15 +791,15 @@ class _FeatureHubState extends State<_FeatureHub> with TickerProviderStateMixin 
               if (i >= _fades.length || i >= _scales.length) return const SizedBox.shrink();
               return FadeTransition(
                 opacity: _fades[i],
-                child: ScaleTransition(scale: _scales[i], child: _FeatureCard(feature: features[i])),
+                child: ScaleTransition(scale: _scales[i], child: _FeatureCard(feature: features[i], td: td)),
               );
             },
           ),
         ),
       ]);
     } catch (e, s) {
-      debugPrint('[_FeatureHub] BUILD ERROR: $e\n$s');
-      return Text('FeatureHub error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
+      debugPrint('[FeatureCardCarousel] BUILD ERROR: $e\n$s');
+      return Text('FeatureCarousel error: $e', style: const TextStyle(color: AppTheme.danger, fontSize: 11));
     }
   }
 }
@@ -608,7 +813,8 @@ class _Feature {
 
 class _FeatureCard extends StatefulWidget {
   final _Feature feature;
-  const _FeatureCard({required this.feature});
+  final HeartSyncThemeData td;
+  const _FeatureCard({required this.feature, required this.td});
   @override State<_FeatureCard> createState() => _FeatureCardState();
 }
 class _FeatureCardState extends State<_FeatureCard> {
@@ -616,6 +822,7 @@ class _FeatureCardState extends State<_FeatureCard> {
   @override
   Widget build(BuildContext context) {
     final f = widget.feature;
+    final td = widget.td;
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
@@ -626,17 +833,18 @@ class _FeatureCardState extends State<_FeatureCard> {
       child: AnimatedScale(scale: _pressed ? 0.93 : 1.0, duration: const Duration(milliseconds: 100),
         child: Container(width: 96,
           decoration: BoxDecoration(
-            color: f.color.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: f.color.withValues(alpha: 0.28)),
+            color: td.isLight ? td.surface : f.color.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(td.cardRadius),
+            border: Border.all(color: td.isLight ? td.border : f.color.withValues(alpha: 0.28)),
+            boxShadow: td.isLight ? [BoxShadow(color: f.color.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, 5))] : [],
           ),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Container(width: 48, height: 48,
-              decoration: BoxDecoration(color: f.color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(color: f.color, borderRadius: BorderRadius.circular(td.isLight ? 18 : 14)),
               child: Center(child: Text(f.emoji, style: const TextStyle(fontSize: 24))),
             ),
             const SizedBox(height: 8),
-            Text(f.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: f.color), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(f.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: td.isLight ? td.textOnSurface : f.color), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
         ),
       ),

@@ -1,0 +1,107 @@
+# HeartSync — Phase T+: Home Rebuild + "Sweetheart" Pastel Theme
+
+## Phase T — Rebuild Home from scratch (don't patch again)
+
+```
+Two fix attempts on Home haven't held — rebuild it clean instead of patching further:
+
+1. Scaffold > SingleChildScrollView > Column only. No CustomScrollView, no Slivers,
+   anywhere on this screen — that pattern was the original Flutter Web rendering bug.
+2. Break Home into independent widgets, each owning its own data fetch and its own
+   loading/error/empty state: GreetingHeroCard, StatCardRow (days together, streak,
+   memories, battery), FeatureCardCarousel (Garden/Our Story/Gratitude Wall/Dream Board/
+   Connect/Challenges/AI Features). If one fails to load, the others must still render —
+   no single failed stream should blank the whole screen again.
+3. Loading state: each card shows a soft pastel skeleton/shimmer shaped like itself while
+   loading — never a blank space. This is both the bug fix and a nice detail in the new
+   visual style below.
+4. Keep the debugPrint instrumentation from the earlier debug pass permanently in debug
+   builds — it's what actually found the last bug, don't remove it now that it works.
+```
+
+---
+
+## Phase U — "Sweetheart" theme: claymorphism tokens (a second full theme, not a replacement)
+
+```
+Build this as a complete second theme using the existing ThemeExtension architecture —
+selectable from the Theme picker alongside Midnight Rose, which stays exactly as built.
+
+Tokens:
+- Background: soft gradient, Lavender Mist #F3EFFF to Blush Mist #FDEEF6
+- Card surface: Cloud White #FFFBFE with a soft colored "puffy" shadow (light purple-
+  tinted, blur ~24, low opacity) instead of a flat grey shadow — this is what creates the
+  claymorphism look in your references.
+- Primary accent: Lavender Pop #9B87F5
+- Secondary accent: Coral Blush #FF9EB5
+- Icon-badge accents (one flat pastel color per badge, white icon inside, ~40x40,
+  rounded-square — copy this exact pattern from the dashboard reference's Songs Played /
+  Favorites / Hours / Streak cards): Sunshine Yellow #FFD66B, Sky Mint #8CE0C9, Soft Peach
+  #FFC9A8
+- Text: Plum Ink #4A3B6B on light surfaces — soft dark, never pure black
+
+Typography for this theme only: Quicksand or Baloo 2 for headers, Nunito for body —
+rounded, friendly letterforms, replacing Midnight Rose's elegant serif entirely when this
+theme is active (swap the font role, not just the color).
+
+Shape language: 24-28px corner radius everywhere, pill-shaped buttons, the icon-badge
+pattern above used consistently on every stat/feature card: small colored badge, big
+number, small label underneath — exactly the dashboard reference's layout.
+
+Asset note: the couple/character illustrations in your references are rendered 3D art,
+not buildable with Flutter widgets. Source a small matching set of 3D-clay-style couple
+illustrations (a few poses/expressions — welcoming, celebrating, comforting) from an
+illustration marketplace or commissioned artist, used as static image or Lottie assets
+for the login hero and key empty states. Everything else — shadows, rounded corners,
+gradients — is native Flutter, no assets needed.
+```
+
+---
+
+## Phase V — Login/Welcome screen redesign
+
+```
+Rebuild login/signup to match the reference: a couple-mascot illustration peeking over
+the top of the form card, "Welcome Back 💜" in the Quicksand/Baloo 2 display font, input
+fields with a small circular icon-prefix badge (person icon for email, lock icon for
+password) in the Sweetheart tokens, a big pill-shaped primary button, and a row of social
+sign-in buttons below.
+
+Be upfront about which sign-in methods actually work right now versus which are just
+shown in the reference: you currently have email/password via Firebase Auth from Phase 0.
+Google/Apple/Facebook buttons each need their own Firebase Auth provider configured
+before they function — either wire up Google Sign-In now if it's a priority, or only show
+the auth methods that actually work. Don't ship a button that does nothing when tapped.
+```
+
+---
+
+## Phase W — Apply Sweetheart across remaining screens + Chat reconciliation
+
+```
+Run the existing theme-token refactor against Sweetheart specifically: go screen by
+screen (Garden, Notes, More, Profile, Vault) confirming every hardcoded color is replaced
+by a theme token reference, so switching themes changes the whole screen, not just the
+nav bar — same discipline as the original theme-bug fix, just verified against this new
+second theme too.
+
+Chat needs one explicit decision, since Dynamic Love Sky and the bubble shapes were built
+for the dark atmosphere: when Sweetheart is active, Dynamic Love Sky uses only its pastel
+morning/day/evening gradient states — skip the midnight star-field/Heart Constellation
+variant entirely, since a dark night sky doesn't belong in a light cute theme. Bubble
+shapes simplify to soft rounded claymorphism chips in the Sweetheart palette rather than
+the cloud/love-letter/envelope shapes (which stay specific to Midnight Rose). Heartbeat
+glow and the mood-color aura system apply in both themes, just recolored to whichever
+theme's tokens are active.
+```
+
+---
+
+## Phase X — Theme switcher verification
+
+```
+With two fully-realized themes now, manually switch between Midnight Rose and Sweetheart
+on every screen and confirm: backgrounds, text, buttons, icon badges, fonts, and Chat's
+atmosphere system all update correctly, with no leftover hardcoded colors from either
+theme bleeding into the other.
+```
