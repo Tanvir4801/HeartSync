@@ -5,40 +5,41 @@ import {
   LayoutDashboard, Users, Flag, Bell, BarChart2,
   ShieldAlert, Cpu, Sparkles, LogOut, Menu, X, Heart,
   Palette, HeadphonesIcon, TrendingUp, ClipboardList, Shield,
+  ChevronRight,
 } from 'lucide-react';
 
 const navGroups = [
   {
     label: 'Core',
     items: [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/couples', icon: Users, label: 'Couples' },
-      { to: '/reports', icon: ShieldAlert, label: 'Moderation' },
-      { to: '/revenue', icon: BarChart2, label: 'Revenue' },
+      { to: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard'       },
+      { to: '/couples',     icon: Users,           label: 'Couples'         },
+      { to: '/reports',     icon: ShieldAlert,     label: 'Moderation'      },
+      { to: '/revenue',     icon: BarChart2,       label: 'Revenue'         },
     ],
   },
   {
     label: 'Intelligence',
     items: [
-      { to: '/analytics', icon: TrendingUp, label: 'Funnel & Retention' },
-      { to: '/ai-usage', icon: Cpu, label: 'AI Usage' },
-      { to: '/ai-playground', icon: Sparkles, label: 'AI Playground' },
+      { to: '/analytics',    icon: TrendingUp, label: 'Funnel & Retention' },
+      { to: '/ai-usage',     icon: Cpu,        label: 'AI Usage'           },
+      { to: '/ai-playground',icon: Sparkles,   label: 'AI Playground'      },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { to: '/notifications', icon: Bell, label: 'Notifications' },
-      { to: '/flags', icon: Flag, label: 'Feature Flags' },
-      { to: '/themes', icon: Palette, label: 'Themes & Badges' },
-      { to: '/support', icon: HeadphonesIcon, label: 'Support Inbox' },
+      { to: '/notifications', icon: Bell,            label: 'Notifications'  },
+      { to: '/flags',         icon: Flag,            label: 'Feature Flags'  },
+      { to: '/themes',        icon: Palette,         label: 'Themes'         },
+      { to: '/support',       icon: HeadphonesIcon,  label: 'Support Inbox'  },
     ],
   },
   {
     label: 'Compliance',
     items: [
-      { to: '/audit', icon: ClipboardList, label: 'Audit Log' },
-      { to: '/gdpr', icon: Shield, label: 'GDPR Requests' },
+      { to: '/audit', icon: ClipboardList, label: 'Audit Log'     },
+      { to: '/gdpr',  icon: Shield,        label: 'GDPR Requests' },
     ],
   },
 ];
@@ -46,97 +47,123 @@ const navGroups = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [open, setOpen] = useState(true);
 
-  function handleLogout() {
-    logout();
-    navigate('/login');
-  }
+  function handleLogout() { logout(); navigate('/login'); }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <aside style={{
-        width: sidebarOpen ? 220 : 64,
-        background: 'var(--color-surface)',
-        borderRight: '1px solid var(--color-border)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'width 0.2s ease',
-        flexShrink: 0,
-        overflow: 'hidden',
+      {/* ── Sidebar ── */}
+      <aside className="sidebar-glass" style={{
+        width: open ? 224 : 62,
+        display: 'flex', flexDirection: 'column',
+        transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
+        flexShrink: 0, overflow: 'hidden',
+        zIndex: 10,
       }}>
-        <div style={{ padding: '18px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--color-border)' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {/* Logo row */}
+        <div style={{
+          padding: open ? '16px 14px' : '16px 14px',
+          display: 'flex', alignItems: 'center',
+          gap: open ? 10 : 0,
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          minHeight: 60,
+        }}>
+          <div className="logo-orb">
             <Heart size={16} color="#fff" fill="#fff" />
           </div>
-          {sidebarOpen && <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', color: 'var(--color-text)' }}>HeartSync Console</span>}
+          {open && (
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 13.5, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
+                HeartSync
+              </div>
+              <div style={{ fontSize: 10, color: 'rgba(120,120,180,0.7)', fontWeight: 500, letterSpacing: '0.06em' }}>
+                CONSOLE
+              </div>
+            </div>
+          )}
         </div>
 
-        <nav style={{ flex: 1, padding: '8px', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '8px', overflowY: 'auto', overflowX: 'hidden' }}>
           {navGroups.map(group => (
-            <div key={group.label} style={{ marginBottom: 4 }}>
-              {sidebarOpen && (
-                <div style={{ padding: '8px 10px 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                  {group.label}
-                </div>
-              )}
+            <div key={group.label} style={{ marginBottom: 6 }}>
+              {open && <div className="section-label">{group.label}</div>}
               {group.items.map(({ to, icon: Icon, label }) => (
-                <NavLink key={to} to={to} style={({ isActive }) => ({
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 10px', borderRadius: 8,
-                  color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                  background: isActive ? 'var(--color-primary-soft)' : 'transparent',
-                  fontWeight: isActive ? 600 : 400,
-                  fontSize: 13,
-                  transition: 'all 0.15s',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  marginBottom: 1,
-                })}>
+                <NavLink key={to} to={to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                  style={{ justifyContent: open ? 'flex-start' : 'center' }}
+                  title={!open ? label : undefined}
+                >
                   <Icon size={16} style={{ flexShrink: 0 }} />
-                  {sidebarOpen && label}
+                  {open && <span>{label}</span>}
                 </NavLink>
               ))}
             </div>
           ))}
         </nav>
 
-        <div style={{ padding: '12px 8px', borderTop: '1px solid var(--color-border)' }}>
-          {sidebarOpen && (
-            <div style={{ padding: '6px 10px', fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user?.email}
-              {user?.mock && <span style={{ marginLeft: 6, background: 'var(--color-warning)', color: '#000', borderRadius: 4, padding: '1px 5px', fontSize: 10 }}>DEMO</span>}
+        {/* Footer */}
+        <div style={{ padding: '10px 8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          {open && user?.email && (
+            <div style={{
+              padding: '7px 10px 10px',
+              fontSize: 11,
+              color: 'var(--color-text-muted)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0, boxShadow: '0 0 8px var(--color-success)' }} />
+              {user.email}
+              {user?.mock && (
+                <span style={{ background: 'rgba(250,204,21,0.15)', color: 'var(--color-warning)', borderRadius: 5, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.05em' }}>
+                  DEMO
+                </span>
+              )}
             </div>
           )}
-          <button onClick={handleLogout} style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            width: '100%', padding: '9px 10px', borderRadius: 8,
-            background: 'none', border: 'none',
-            color: 'var(--color-text-muted)', fontSize: 13,
-            transition: 'all 0.15s', cursor: 'pointer',
-          }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--color-danger)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+          <button
+            onClick={handleLogout}
+            className="nav-item"
+            style={{ width: '100%', background: 'none', border: '1px solid transparent', justifyContent: open ? 'flex-start' : 'center' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-danger)'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.2)'; e.currentTarget.style.background = 'rgba(248,113,113,0.06)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = ''; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'none'; }}
           >
-            <LogOut size={16} style={{ flexShrink: 0 }} />
-            {sidebarOpen && 'Sign out'}
+            <LogOut size={15} style={{ flexShrink: 0 }} />
+            {open && 'Sign out'}
           </button>
         </div>
       </aside>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <header style={{
-          height: 52, background: 'var(--color-surface)',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex', alignItems: 'center', padding: '0 20px', gap: 12,
+      {/* ── Content area ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        {/* Header */}
+        <header className="header-glass" style={{
+          height: 52, display: 'flex', alignItems: 'center',
+          padding: '0 20px', gap: 14, flexShrink: 0,
         }}>
-          <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', padding: 4, borderRadius: 6, display: 'flex', cursor: 'pointer' }}>
-            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+          <button
+            onClick={() => setOpen(o => !o)}
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, color: 'var(--color-text-muted)', padding: '6px 7px', display: 'flex', cursor: 'pointer', transition: 'all 0.18s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+          >
+            {open ? <X size={16} /> : <Menu size={16} />}
           </button>
-          <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>heartsync-b4e9f</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ChevronRight size={13} style={{ color: 'rgba(255,255,255,0.2)' }} />
+            <span style={{ fontSize: 12, color: 'rgba(120,120,180,0.8)', letterSpacing: '0.04em' }}>heartsync-b4e9f</span>
+          </div>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, rgba(224,92,126,0.3), rgba(180,79,222,0.3))', border: '1px solid rgba(224,92,126,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
+              ♥
+            </div>
+          </div>
         </header>
 
-        <main style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        {/* Main */}
+        <main style={{ flex: 1, overflow: 'auto', padding: '28px 28px' }}>
           <Outlet />
         </main>
       </div>

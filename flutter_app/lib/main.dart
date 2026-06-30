@@ -35,15 +35,30 @@ class HeartSyncApp extends StatelessWidget {
   }
 }
 
-class _AuthGate extends StatelessWidget {
+class _AuthGate extends StatefulWidget {
   const _AuthGate();
+  @override State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  bool _timedOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _timedOut = true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return const _SplashScreen();
+        if (snap.connectionState == ConnectionState.waiting && !_timedOut) {
+          return const _SplashScreen();
+        }
         if (!snap.hasData || snap.data == null) return const LoginScreen();
         return _CoupleGate(uid: snap.data!.uid, email: snap.data!.email ?? '');
       },

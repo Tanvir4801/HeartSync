@@ -51,14 +51,15 @@ export default function Revenue() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Total Revenue',  value: `₹${totalRev.toFixed(0)}`, color: 'var(--color-success)' },
-          { label: 'New Purchases',  value: purchases,                  color: 'var(--color-primary)' },
-          { label: 'Renewals',       value: renewals,                   color: 'var(--color-info)'    },
-          { label: 'Cancellations',  value: churned,                    color: 'var(--color-danger)'  },
+          { label: 'Total Revenue',  value: `₹${totalRev.toFixed(0)}`, color: '#4ade80' },
+          { label: 'New Purchases',  value: purchases,                  color: '#e05c7e' },
+          { label: 'Renewals',       value: renewals,                   color: '#60a5fa' },
+          { label: 'Cancellations',  value: churned,                    color: '#f87171' },
         ].map(s => (
-          <div key={s.label} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>{s.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: s.color }}>{s.value}</div>
+          <div key={s.label} className="stat-card">
+            <div style={{ position: 'absolute', top: -16, right: -16, width: 60, height: 60, borderRadius: '50%', background: s.color, opacity: 0.08, filter: 'blur(16px)', pointerEvents: 'none' }} />
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10, position: 'relative' }}>{s.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: s.color, lineHeight: 1, position: 'relative', letterSpacing: '-0.02em' }}>{s.value}</div>
           </div>
         ))}
       </div>

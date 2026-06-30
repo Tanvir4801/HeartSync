@@ -4,3 +4,5 @@
 - [ThemeProvider wiring](theme-provider-wiring.md) — how ThemeProvider is integrated into main.dart and shell
 - [Theme system patterns](theme-system-patterns.md) — theme.dart must import provider.dart when widgets use context.watch; AppTheme.forThemeData() generates light vs dark ThemeData based on isLight flag
 - [IndexedStack screen caching](indexedstack-screen-caching.md) — screens must be built once in initState and cached; calling builders in build() recreates widgets every render causing blank screens
+- [Flutter auth timeout](flutter-auth-timeout.md) — authStateChanges() hangs indefinitely in Replit preview; _AuthGate must be StatefulWidget with 6-second timer to force show LoginScreen
+- [Admin console design system](admin-console-design.md) — glassmorphism CSS in index.css; classes: .glass-card, .stat-card, .nav-item, .btn-grad, .input-glass, .grad-text, .sidebar-glass
