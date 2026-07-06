@@ -1,0 +1,224 @@
+# HeartSync — Phase Y+: Sync Zone + Remaining Pending Features
+
+---
+
+## Honest architecture note before building (read this first)
+
+Music and video sync have a hard platform constraint that isn't negotiable:
+you cannot legally stream licensed music or movies to two people simultaneously
+without a streaming license. This means:
+
+- Spotify "sync" = Replit backend controls BOTH partners' Spotify via the Spotify
+  Web API using each partner's own OAuth token — they each need a Spotify account.
+  You are not streaming audio yourself; Spotify does, on each device separately,
+  and your backend keeps them in sync by coordinating playback state.
+- YouTube "watch together" = both load the same YouTube video URL via the
+  youtube_player_flutter package and your backend keeps their playback position
+  in sync. YouTube's embed terms allow this.
+- "Couple Radio" (your own playlists of user-uploaded audio) = legal because the
+  user owns or has rights to the file they uploaded — same as voice notes in chat.
+  This is the one sync feature where you control the full stack.
+
+The sync mechanism for ALL of these is the same: a Firestore
+couples/{id}/syncSession doc with { type, contentId, state: playing|paused,
+position, updatedAt, conductorId } — one partner is the "conductor" who controls
+play/pause/seek, the other is the "listener" who follows. Don't build three separate
+sync systems; build one SyncSessionController and reuse it.
+
+---
+
+## Phase Y — SyncSessionController (build once, used by all sync features)
+
+```
+Build /lib/features/sync/sync_session_controller.dart:
+
+1. Firestore doc: couples/{coupleId}/syncSession with fields:
+   type: 'music' | 'youtube' | 'radio'
+   contentId: string (Spotify track/playlist URI, YouTube video ID, or radio doc ID)
+   state: 'idle' | 'playing' | 'paused' | 'ended'
+   positionMs: int (current playback position in milliseconds)
+   conductorId: string (uid of the partner currently in control)
+   updatedAt: Timestamp
+
+2. Only the conductor writes to this doc. The listener subscribes to it via a
+   Firestore snapshot listener and syncs their local playback to match.
+
+3. Either partner can request conductor role — write conductorId = their uid. If
+   both write simultaneously, last-write-wins is fine (Firestore default); brief
+   conflicts here are cosmetically annoying but not data-corrupting.
+
+4. Position sync: conductor writes positionMs every 5 seconds only (not continuously
+   — continuous writes are expensive and trigger continuous listener rebuilds).
+   On a state change (play/pause/seek), write immediately.
+
+5. Listener-side tolerance: if |local_position - syncSession.positionMs| > 3000ms
+   (3 seconds), seek to match. Under 3 seconds, don't seek — small drift is
+   invisible to the human ear and constant micro-seeks are jarring.
+
+6. Session cleanup: write state='idle' when either partner closes the Sync Zone screen.
+   Add a Cloud Function that auto-cleans sessions older than 24 hours with state='idle'.
+```
+
+---
+
+## Phase Z-1 — Couple Radio (fully self-contained, no third-party API needed)
+
+```
+This is the most unique and legally cleanest sync feature — no Spotify/YouTube
+dependency, ships standalone:
+
+1. Both partners can add audio tracks to a shared Couple Radio playlist — stored at
+   couples/{id}/radioTracks/{id}: title, artistName, uploadedBy, storageUrl,
+   durationMs. Upload via Firebase Storage, same as voice notes but larger file
+   size limit (20MB per track).
+
+2. A "Radio Room" screen: show the current track with a cassette/vinyl disc animation
+   that spins while playing, partner's avatar shown alongside yours, a shared queue,
+   and playback controls (play/pause/skip) using the SyncSessionController above with
+   type='radio'.
+
+3. Use the just_audio package for local audio playback; it handles buffering, position
+   tracking, and seeking cleanly. The conductor controls just_audio directly; the
+   listener reads from the syncSession and calls seek/play/pause on their own
+   just_audio instance to match.
+
+4. "Add a song that reminds me of you" — a soft prompt shown when the queue is empty,
+   themed to whichever active theme (Midnight Rose or Sweetheart).
+
+This is your unique differentiator — no other couples app has a private shared radio
+station. Lean into it in your marketing copy.
+```
+
+---
+
+## Phase Z-2 — Spotify Together (requires each partner to connect their Spotify account)
+
+```
+1. Add "Connect Spotify" in Settings: Firebase Auth link flow using the Spotify OAuth
+   Web API. Store each user's Spotify access_token + refresh_token in their
+   /users/{uid} doc (server-side only, not readable by the partner per the Firestore
+   rules already in place).
+
+2. On your Replit backend add:
+   GET /api/spotify/current-track?uid= — fetches the user's currently playing track
+   POST /api/spotify/sync — takes { conductorUid, listenerUid, action, positionMs }
+   and issues the matching Spotify API command on the listener's account.
+
+3. Flutter side: the conductor uses the Spotify app on their own device normally.
+   Your app polls /api/spotify/current-track every 5s (conductor), writes to
+   syncSession, and the Replit backend applies the same state to the listener's account.
+   The listener hears the same track via their own Spotify app — your app doesn't
+   stream audio, it just keeps playback state in sync via the API.
+
+4. Show a "Listening Together" card on Home when a Spotify sync session is active —
+   both partner avatars, track name, artist, a pulsing music-note icon.
+
+5. Token refresh: Spotify tokens expire in 1 hour. Handle the refresh flow on the
+   backend before every API call — don't expose this complexity to the Flutter client.
+```
+
+---
+
+## Phase Z-3 — Watch Together (YouTube only)
+
+```
+1. Either partner pastes or searches a YouTube URL/ID. The conductor's chosen video
+   ID writes to syncSession with type='youtube'.
+
+2. Use the youtube_player_flutter package for inline playback. Both partners load
+   the same video ID; SyncSessionController keeps position and play/pause in sync
+   using the same 5-second tolerance rule from Phase Y.
+
+3. Add a reaction overlay: small floating emoji reactions (❤️ 😂 😭 😮) that both
+   partners can tap and see in real time — stored as a subcollection
+   syncSession/reactions/{id} with a short TTL (auto-delete after 5 seconds via
+   a Cloud Function) so they animate across both screens simultaneously.
+
+4. A shared "watch list" — couples/{id}/watchList/{id}: videoId, title, thumbnail,
+   addedBy — so either partner can queue videos to watch together later.
+
+5. Be honest in the UI: this works with YouTube only. Don't show a Netflix/
+   Prime/Disney+ logo or imply those will work — they won't without those
+   companies' specific APIs and licensing agreements.
+```
+
+---
+
+## Phase Z-4 — Sync Zone screen (home for all three)
+
+```
+A dedicated "Sync Zone" screen accessible from the Home feature card carousel
+(add it alongside Garden / Our Story / etc.):
+
+- Hero: two partner avatars facing each other, a pulsing connection line between them,
+  active session state shown if one is running.
+- Three cards: "Couple Radio", "Spotify Together" (shows "Connect Spotify" if not
+  connected), "Watch Together".
+- Active session banner if any sync type is currently running — tap to rejoin.
+- Sweetheart theme: pastel card layout, soft shadows, rounded badges.
+  Midnight Rose theme: the dark atmospheric card style with glow borders.
+```
+
+---
+
+## Phase Q (pending from earlier) — Heart Constellation + particle reuse
+
+```
+(From the Phase N-S prompt — adding here since it's still pending)
+
+Within the Chat Night sky state: 7-8 star particles drift to positions that form a faint
+heart silhouette. Every few minutes, soft connecting lines fade in between those specific
+stars, hold for ~5 seconds, then fade out. Reuses the existing star particle system —
+no second renderer.
+
+Floating petals/fireflies: swap the FloatingHeartsOverlay sprite from hearts to petals
+or fireflies depending on time of day (petals in evening, fireflies at night), same
+throttle cap of 12 particles — no new engine.
+```
+
+---
+
+## Phase R (pending) — Anniversary Mode
+
+```
+On the stored anniversaryDate: Chat and Home enter a golden takeover — Champagne Gold
+gradient, floating rose petals, sparkle one-shot bursts, and a pinned memory highlight
+card above the Chat input showing the couple's earliest favorited photo. Pure date-check
+logic against the existing anniversaryDate field — no new data model needed.
+```
+
+---
+
+## Phase S (pending) — Wishing Star + Butterfly Messages
+
+```
+1. Wishing Star: a tiny star appears in Chat at low frequency (random once per session,
+   not every open). Tapping it opens a "Send a secret wish" composer. The wish is stored
+   as a note with openDate set 24 hours ahead — reuses the existing scheduled note
+   infrastructure, delivered the next day.
+
+2. Butterfly Messages: detect the exact phrases "I love you" or "I miss you" in a sent
+   message (case-insensitive, exact match — not every message containing "love," or it
+   becomes noise). Play a one-shot butterfly-crossing-screen animation using a Lottie
+   asset. Fire at most once per chat session, not on every qualifying message.
+
+3. Couple Mascot: a small corner Rive character with 4 expression states mapped to the
+   current mood (happy / sad / excited / neutral). Rive's state machine transitions
+   between expressions live as mood changes — this is the correct tool here because Rive
+   state machines can respond to live data, unlike a fixed Lottie loop. Source or
+   commission a small clay-style bear/bunny couple asset — this genuinely cannot be
+   hand-coded in Flutter, it needs an actual illustration file.
+```
+
+---
+
+## Build order recommendation
+
+```
+Phase Y (SyncSessionController) → Z-1 (Couple Radio) → Q → R → S → Z-2 (Spotify) →
+Z-3 (Watch Together) → Z-4 (Sync Zone screen).
+
+Build Z-1 before Z-2 and Z-3 because it has zero external API dependencies —
+you can ship Couple Radio to real users while Spotify/YouTube integrations are still
+being built and tested. Don't block the self-contained feature on the API-dependent ones.
+```

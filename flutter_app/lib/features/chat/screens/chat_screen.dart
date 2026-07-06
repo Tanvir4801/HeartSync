@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,9 @@ import '../../../core/widgets/love_sky.dart';
 import '../models/message_model.dart';
 import '../repository/chat_repository.dart';
 import '../widgets/chat_bubble.dart';
+import '../../notes/repository/note_repository.dart';
+import '../../notes/models/note_model.dart';
+import '../../memories/models/memory_model.dart';
 
 const _quickReplies = ['Good morning ☀️', 'Good night 🌙', 'Miss you 💕', 'Love you ❤️', 'Thinking of you 💭'];
 
@@ -45,6 +49,12 @@ class _ChatScreenState extends State<ChatScreen> {
   int? _anniversaryDays;
   MoodAura _moodAura  = MoodAura.none;
 
+  // ── Phase S: Wishing Star + Butterfly ────────────────────────────────────
+  bool _wishingStarVisible = false;
+  bool _butterflyFired     = false;
+  bool _showButterflyAnim  = false;
+  Timer? _wishingStarTimer;
+
   // ── Subscriptions ─────────────────────────────────────────────────────────
   Timer? _presenceTimer;
   StreamSubscription? _moodSub, _presenceSub, _sleepSub;
@@ -56,6 +66,11 @@ class _ChatScreenState extends State<ChatScreen> {
     _listenMood();
     _listenSleep();
     _startPresence();
+    // Phase S: Wishing star — appears once per session after a random delay (15–135s)
+    _wishingStarTimer = Timer(
+      Duration(seconds: 15 + math.Random().nextInt(120)),
+      () { if (mounted) setState(() => _wishingStarVisible = true); },
+    );
     debugPrint('[ChatScreen] init coupleId=${widget.coupleId} uid=$_uid');
   }
 
@@ -166,6 +181,17 @@ class _ChatScreenState extends State<ChatScreen> {
       type: preset != null ? MessageType.quick : MessageType.text,
       content: text, sentAt: DateTime.now(),
     ));
+    // Phase S: Butterfly trigger — exactly "i love you" or "i miss you", once per session
+    if (!_butterflyFired) {
+      final lower = text.toLowerCase();
+      if (lower.contains('i love you') || lower.contains('i miss you')) {
+        _butterflyFired = true;
+        setState(() { _showButterflyAnim = true; _wishingStarVisible = false; });
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) setState(() => _showButterflyAnim = false);
+        });
+      }
+    }
     if (_scroll.hasClients) _scroll.animateTo(0, duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
   }
 
@@ -178,6 +204,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _wishingStarTimer?.cancel();
     _typingTimer?.cancel();
     _presenceTimer?.cancel();
     _moodSub?.cancel();
@@ -228,12 +255,24 @@ class _ChatScreenState extends State<ChatScreen> {
                   Positioned(bottom: 8, left: 16, right: 16, child: _TypingIndicatorWrapper(
                     coupleId: widget.coupleId, uid: _uid, repo: _repo, partnerName: _partnerName,
                   )),
+                  // Phase S: Butterfly animation — fires once on "I love you" / "I miss you"
+                  if (_showButterflyAnim)
+                    Positioned.fill(child: IgnorePointer(child: _ButterflyOverlay())),
+                  // Phase S: Wishing star — appears once per session at random
+                  if (_wishingStarVisible)
+                    Positioned(top: 14, right: 14, child: _WishingStarButton(
+                      coupleId: widget.coupleId, uid: _uid,
+                      onDismiss: () => setState(() => _wishingStarVisible = false),
+                    )),
                 ]),
             ),
 
             // ── Quick replies ──────────────────────────────────────────────
             if (_showQuick)
               _QuickReplies(replies: _quickReplies, onTap: (r) { _send(r); setState(() => _showQuick = false); }),
+
+            // ── Phase R: Anniversary memory highlight card ─────────────────
+            if (_isAnniversary) _AnniversaryMemoryCard(coupleId: widget.coupleId),
 
             // ── Input bar ──────────────────────────────────────────────────
             _InputBar(
@@ -633,4 +672,277 @@ class _InputBar extends StatelessWidget {
       ),
     ])),
   );
+}
+
+// ─── Phase S: Butterfly Overlay ───────────────────────────────────────────────
+// One-shot animation: several butterflies drift across the screen, fade out.
+
+class _ButterflyOverlay extends StatefulWidget {
+  const _ButterflyOverlay();
+  @override State<_ButterflyOverlay> createState() => _ButterflyOverlayState();
+}
+
+class _ButterflyOverlayState extends State<_ButterflyOverlay> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))..forward();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _ctrl,
+    builder: (_, __) => CustomPaint(
+      painter: _ButterflyPainter(_ctrl.value),
+      size: MediaQuery.of(context).size,
+    ),
+  );
+}
+
+class _ButterflyPainter extends CustomPainter {
+  final double t;
+  _ButterflyPainter(this.t);
+
+  static const _butterflies = [
+    (0.10, 0.7, 0.3), (0.25, 0.5, 0.25), (0.40, 0.8, 0.35),
+    (0.55, 0.4, 0.28), (0.70, 0.6, 0.32), (0.85, 0.35, 0.26),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (int i = 0; i < _butterflies.length; i++) {
+      final b = _butterflies[i];
+      final progress = ((t - b.$1) / (1.0 - b.$1)).clamp(0.0, 1.0);
+      if (progress <= 0) continue;
+      final opacity = (math.sin(progress * math.pi)).clamp(0.0, 1.0);
+      final x = progress * size.width * 1.1;
+      final y = b.$2 * size.height - math.sin(progress * math.pi * 2.5 + i) * 30;
+      final scale = 0.7 + b.$3 * 0.8;
+      _drawButterfly(canvas, Offset(x, y), scale, opacity, i);
+    }
+  }
+
+  void _drawButterfly(Canvas canvas, Offset center, double scale, double opacity, int i) {
+    final colors = [const Color(0xFFE8A598), const Color(0xFFA78BFA), const Color(0xFFF3C98B)];
+    final paint = Paint()
+      ..color = colors[i % colors.length].withValues(alpha: opacity * 0.75)
+      ..style = PaintingStyle.fill;
+
+    final w = 14.0 * scale;
+    final h = 10.0 * scale;
+    final flap = math.sin((i * 0.8 + DateTime.now().millisecondsSinceEpoch / 80.0));
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+
+    // Upper wings
+    _drawWing(canvas, paint, w, h * 0.7, flap, 1);
+    _drawWing(canvas, paint, w, h * 0.7, flap, -1);
+    // Lower wings (smaller)
+    _drawWing(canvas, paint..color = colors[i % colors.length].withValues(alpha: opacity * 0.5), w * 0.6, h * 0.5, flap, 1, yOffset: h * 0.5);
+    _drawWing(canvas, paint, w * 0.6, h * 0.5, flap, -1, yOffset: h * 0.5);
+    // Body
+    canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 3.0 * scale, height: 12.0 * scale), Paint()..color = colors[i % colors.length].withValues(alpha: opacity * 0.8));
+
+    canvas.restore();
+  }
+
+  void _drawWing(Canvas canvas, Paint paint, double w, double h, double flap, double side, {double yOffset = 0}) {
+    final path = Path();
+    final flapAngle = flap * 0.4;
+    path.moveTo(0, yOffset);
+    path.cubicTo(side * w * math.cos(flapAngle), yOffset - h, side * w, yOffset - h * 0.3, 0, yOffset + h * 0.4);
+    canvas.drawPath(path, paint);
+  }
+
+  @override bool shouldRepaint(_ButterflyPainter old) => old.t != t;
+}
+
+// ─── Phase S: Wishing Star ────────────────────────────────────────────────────
+// A small pulsing star that appears once per session. Tapping it opens a
+// "Send a secret wish" composer — wish is stored as a scheduled note (openDate +24h).
+
+class _WishingStarButton extends StatefulWidget {
+  final String coupleId, uid;
+  final VoidCallback onDismiss;
+  const _WishingStarButton({required this.coupleId, required this.uid, required this.onDismiss});
+  @override State<_WishingStarButton> createState() => _WishingStarButtonState();
+}
+
+class _WishingStarButtonState extends State<_WishingStarButton> with SingleTickerProviderStateMixin {
+  late AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() { _pulse.dispose(); super.dispose(); }
+
+  Future<void> _openWishComposer() async {
+    final wish = await showDialog<String>(
+      context: context,
+      builder: (_) => _WishDialog(),
+    );
+    if (wish == null || wish.trim().isEmpty) return;
+    try {
+      final note = Note(
+        id: '',
+        text: '⭐ Secret wish: ${wish.trim()}',
+        authorId: widget.uid,
+        openDate: DateTime.now().add(const Duration(hours: 24)),
+        opened: false,
+        createdAt: DateTime.now(),
+      );
+      await NoteRepository().addNote(widget.coupleId, note);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Your wish has been sealed ⭐ Opens in 24 hours!'),
+          backgroundColor: Color(0xFFE05C7E),
+          duration: Duration(seconds: 3),
+        ));
+      }
+    } catch (e) { debugPrint('[WishingStar] save error: $e'); }
+    widget.onDismiss();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _pulse,
+    builder: (_, __) => GestureDetector(
+      onTap: _openWishComposer,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _midnight.withValues(alpha: 0.85),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFF3C98B).withValues(alpha: 0.5 + _pulse.value * 0.3)),
+          boxShadow: [BoxShadow(
+            color: const Color(0xFFF3C98B).withValues(alpha: 0.2 + _pulse.value * 0.2),
+            blurRadius: 10 + _pulse.value * 6,
+          )],
+        ),
+        child: Text(
+          '⭐',
+          style: TextStyle(fontSize: 14 + _pulse.value * 3),
+        ),
+      ),
+    ),
+  );
+}
+
+class _WishDialog extends StatefulWidget {
+  @override State<_WishDialog> createState() => _WishDialogState();
+}
+
+class _WishDialogState extends State<_WishDialog> {
+  final _ctrl = TextEditingController();
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: const Color(0xFF1B1836),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    title: const Column(children: [
+      Text('⭐', style: TextStyle(fontSize: 32)),
+      SizedBox(height: 8),
+      Text('Send a secret wish', style: TextStyle(color: _moonWhite, fontSize: 16, fontWeight: FontWeight.w700)),
+      SizedBox(height: 4),
+      Text('Your wish will open for them in 24 hours', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
+    ]),
+    content: TextField(
+      controller: _ctrl,
+      autofocus: true,
+      maxLines: 3,
+      maxLength: 200,
+      style: const TextStyle(color: _moonWhite, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: 'I wish for us to…',
+        hintStyle: TextStyle(color: AppTheme.textMuted.withValues(alpha: 0.6), fontStyle: FontStyle.italic),
+        filled: true,
+        fillColor: AppTheme.surface2,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        counterStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+      ),
+      ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE05C7E), foregroundColor: Colors.white,
+          shape: const StadiumBorder(), minimumSize: const Size(0, 38),
+        ),
+        onPressed: () => Navigator.pop(context, _ctrl.text),
+        child: const Text('Seal the wish ⭐'),
+      ),
+    ],
+  );
+}
+
+// ─── Phase R: Anniversary Memory Card ────────────────────────────────────────
+// Shows the couple's earliest favourited photo above the chat input on anniversary day.
+
+class _AnniversaryMemoryCard extends StatelessWidget {
+  final String coupleId;
+  const _AnniversaryMemoryCard({required this.coupleId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('couples').doc(coupleId).collection('memories')
+          .where('isFavorite', isEqualTo: true)
+          .orderBy('date')
+          .limit(1)
+          .snapshots(),
+      builder: (_, snap) {
+        if (!snap.hasData || snap.data!.docs.isEmpty) return const SizedBox.shrink();
+        final memory = Memory.fromDoc(snap.data!.docs.first);
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              const Color(0xFFF3C98B).withValues(alpha: 0.08),
+              const Color(0xFFE8A598).withValues(alpha: 0.05),
+            ]),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFF3C98B).withValues(alpha: 0.35)),
+          ),
+          child: Row(children: [
+            // Photo
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                memory.url, width: 44, height: 44, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(width: 44, height: 44, color: const Color(0xFF2E2C4A), child: const Icon(Icons.photo, color: AppTheme.textMuted, size: 20)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('✨ Anniversary Highlight', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFF3C98B))),
+              const SizedBox(height: 2),
+              Text(
+                memory.caption.isNotEmpty ? memory.caption : 'Your first favourite memory together',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: _moonWhite),
+              ),
+            ])),
+            const Text('💛', style: TextStyle(fontSize: 18)),
+          ]),
+        );
+      },
+    );
+  }
 }

@@ -29,6 +29,15 @@ dependencies:
   image_picker: ^1.1.2
   cached_network_image: ^3.4.1
 
+  # Sync Zone — audio playback for Couple Radio
+  audioplayers: ^6.0.0
+
+  # Sync Zone — YouTube Watch Together
+  youtube_player_iframe: ^5.1.2
+
+  # Sync Zone — audio file picking for Couple Radio uploads
+  file_picker: ^8.0.0
+
   # Utils
   intl: ^0.19.0
   uuid: ^4.5.1

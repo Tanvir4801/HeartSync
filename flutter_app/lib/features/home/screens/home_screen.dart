@@ -17,6 +17,7 @@ import '../../dreamboard/screens/dreamboard_screen.dart';
 import '../../connect/screens/connect_screen.dart';
 import '../../gamification/screens/challenges_screen.dart';
 import '../../ai/screens/ai_screen.dart';
+import '../../sync/screens/sync_zone_screen.dart';
 
 // ── HomeScreen ────────────────────────────────────────────────────────────────
 
@@ -1344,7 +1345,7 @@ class FeatureCardCarousel extends StatefulWidget {
 class _FeatureCardCarouselState extends State<FeatureCardCarousel> with TickerProviderStateMixin {
   late List<AnimationController> _ctrls;
   late List<Animation<double>> _fades, _scales;
-  static const _count = 7;
+  static const _count = 8;
 
   @override
   void initState() {
@@ -1366,6 +1367,7 @@ class _FeatureCardCarouselState extends State<FeatureCardCarousel> with TickerPr
     _Feature('💬', 'Connect',     td.badgeColors[4], (ctx) => ConnectScreen(coupleId: widget.coupleId)),
     _Feature('🏆', 'Challenges',  td.badgeColors[5], (ctx) => ChallengesScreen(coupleId: widget.coupleId)),
     _Feature('✨', 'AI',          td.badgeColors[6], (ctx) => AiScreen(coupleId: widget.coupleId)),
+    _Feature('⚡', 'Sync Zone',   td.accent,          (ctx) => SyncZoneScreen(coupleId: widget.coupleId)),
   ];
 
   @override
