@@ -28,6 +28,7 @@ app.use('/api/flags', adminMiddleware, require('./routes/flags'));
 app.use('/api/ai-usage', adminMiddleware, require('./routes/aiUsage'));
 app.use('/api/ai', adminMiddleware, require('./routes/ai'));
 app.use('/api/webhooks/revenuecat', require('./routes/revenuecat'));
+app.use('/api/spotify', require('./routes/spotify'));
 
 app.use('/api/themes', adminMiddleware, require('./routes/themes'));
 app.use('/api/support', adminMiddleware, require('./routes/support'));

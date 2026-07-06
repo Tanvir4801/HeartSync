@@ -139,7 +139,7 @@ class _SyncZoneScreenState extends State<SyncZoneScreen> with TickerProviderStat
             badgeColor: const Color(0xFF1DB954),
             td: td,
             isActive: _activeSession?.type == SyncType.music,
-            onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => const SpotifyTogetherScreen())),
+            onTap: () => Navigator.push(context, petalBloomRoute(builder: (_) => SpotifyTogetherScreen(coupleId: widget.coupleId))),
           ),
           const SizedBox(height: 12),
           _SyncCard(
@@ -185,7 +185,7 @@ class _SyncZoneScreenState extends State<SyncZoneScreen> with TickerProviderStat
       case SyncType.youtube:
         Navigator.push(context, petalBloomRoute(builder: (_) => WatchTogetherScreen(coupleId: widget.coupleId)));
       case SyncType.music:
-        Navigator.push(context, petalBloomRoute(builder: (_) => const SpotifyTogetherScreen()));
+        Navigator.push(context, petalBloomRoute(builder: (_) => SpotifyTogetherScreen(coupleId: widget.coupleId)));
     }
   }
 }

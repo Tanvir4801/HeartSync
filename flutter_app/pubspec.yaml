@@ -38,6 +38,9 @@ dependencies:
   # Sync Zone — audio file picking for Couple Radio uploads
   file_picker: ^8.0.0
 
+  # URL launcher — open OAuth in browser
+  url_launcher: ^6.3.1
+
   # Utils
   intl: ^0.19.0
   uuid: ^4.5.1
