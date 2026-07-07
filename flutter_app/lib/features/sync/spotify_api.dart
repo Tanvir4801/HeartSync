@@ -1,69 +1,49 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import '../../core/api_client.dart';
 
 /// Thin wrapper around the HeartSync server's Spotify endpoints.
-/// The server handles OAuth tokens, token refresh, and Spotify API calls.
+/// Read-only endpoints (status, current-track) call the server directly.
+/// All write endpoints (play, pause, seek, sync, disconnect) use api_client.dart
+/// so Firebase ID-token auth is attached automatically — the server resolves
+/// the UID from the token, never trusts a caller-supplied UID.
 class SpotifyApi {
   SpotifyApi._();
 
-  /// Server base URL — derived from the current page URL in web, localhost on
-  /// native. In Replit, the Flutter app (port 8080) and the API (port 3001)
-  /// share the same hostname, so we just swap the port.
+  /// Server base URL — derived from the current page URL in web, localhost on native.
   static String get base {
     if (kIsWeb) {
-      final uri = Uri.base;
-      final host = uri.host.contains(':') ? uri.host.split(':').first : uri.host;
-      return 'https://$host:3001';
+      try {
+        final uri = Uri.base;
+        final host = uri.host.contains(':') ? uri.host.split(':').first : uri.host;
+        return 'https://$host:3001';
+      } catch (_) {}
     }
     return 'http://localhost:3001';
   }
 
-  // ── OAuth ────────────────────────────────────────────────────────────────
+  // ── OAuth ─────────────────────────────────────────────────────────────────
 
-  /// The URL the user must open in a browser to connect their Spotify account.
+  /// URL the user opens in a browser to connect their Spotify account.
   static String authUrl(String uid, String coupleId) =>
       '$base/api/spotify/auth?uid=${Uri.encodeComponent(uid)}&coupleId=${Uri.encodeComponent(coupleId)}';
 
-  // ── REST helpers ─────────────────────────────────────────────────────────
+  // ── Unauthenticated read helpers (UID in path, no secret token needed) ────
 
-  static Future<Map<String, dynamic>?> _get(String path) async {
+  static Future<Map<String, dynamic>?> _readGet(String path) async {
     try {
       final res = await http.get(Uri.parse('$base$path'))
           .timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
-      return null;
-    } catch (_) { return null; }
+    } catch (_) {}
+    return null;
   }
 
-  static Future<Map<String, dynamic>?> _post(String path, Map<String, dynamic> body) async {
-    try {
-      final res = await http.post(
-        Uri.parse('$base$path'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 6));
-      if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
-      return null;
-    } catch (_) { return null; }
-  }
-
-  static Future<Map<String, dynamic>?> _put(String path, Map<String, dynamic> body) async {
-    try {
-      final res = await http.put(
-        Uri.parse('$base$path'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 6));
-      if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
-      return null;
-    } catch (_) { return null; }
-  }
-
-  // ── Public API ────────────────────────────────────────────────────────────
+  // ── Public API ─────────────────────────────────────────────────────────────
 
   static Future<SpotifyStatus?> getStatus(String uid) async {
-    final data = await _get('/api/spotify/status/$uid');
+    final data = await _readGet('/api/spotify/status/$uid');
     if (data == null) return null;
     return SpotifyStatus(
       connected: data['connected'] == true,
@@ -73,54 +53,51 @@ class SpotifyApi {
   }
 
   static Future<SpotifyTrack?> getCurrentTrack(String uid) async {
-    final data = await _get('/api/spotify/current-track/$uid');
+    final data = await _readGet('/api/spotify/current-track/$uid');
     if (data == null || data['playing'] != true) return null;
     return SpotifyTrack.fromMap(data);
   }
 
-  static Future<bool> play(String uid, {String? trackUri, int positionMs = 0}) async {
-    final result = await _post('/api/spotify/play', {
-      'uid': uid,
+  // ── Authenticated write endpoints — UID comes from Firebase token on server ─
+
+  static Future<bool> play({String? trackUri, int positionMs = 0}) async {
+    final result = await backendPost('/api/spotify/play', {
       if (trackUri != null) 'trackUri': trackUri,
       'positionMs': positionMs,
     });
-    return result?['ok'] == true;
+    return result['ok'] == true || result['error'] == null;
   }
 
-  static Future<bool> pause(String uid) async {
-    final result = await _put('/api/spotify/pause', {'uid': uid});
-    return result?['ok'] == true;
+  static Future<bool> pause() async {
+    final result = await backendPut('/api/spotify/pause', {});
+    return result['ok'] == true;
   }
 
-  static Future<bool> seek(String uid, int positionMs) async {
-    final result = await _put('/api/spotify/seek', {'uid': uid, 'positionMs': positionMs});
-    return result?['ok'] == true;
+  static Future<bool> seek(int positionMs) async {
+    final result = await backendPut('/api/spotify/seek', {'positionMs': positionMs});
+    return result['ok'] == true;
   }
 
+  /// Conductor calls this to sync the listener. conductorUid is verified
+  /// server-side from the Firebase token; only listenerUid + track info go in body.
   static Future<bool> syncToListener({
-    required String conductorUid,
     required String listenerUid,
     required String trackUri,
     required int positionMs,
     required bool isPlaying,
   }) async {
-    final result = await _post('/api/spotify/sync', {
-      'conductorUid': conductorUid,
+    final result = await backendPost('/api/spotify/sync', {
       'listenerUid': listenerUid,
       'trackUri': trackUri,
       'positionMs': positionMs,
       'isPlaying': isPlaying,
     });
-    return result?['ok'] == true;
+    return result['ok'] == true;
   }
 
-  static Future<bool> disconnect(String uid, String coupleId) async {
-    try {
-      final res = await http.delete(
-        Uri.parse('$base/api/spotify/disconnect/$uid?coupleId=${Uri.encodeComponent(coupleId)}'),
-      ).timeout(const Duration(seconds: 6));
-      return res.statusCode == 200;
-    } catch (_) { return false; }
+  static Future<bool> disconnect(String coupleId) async {
+    final result = await backendDelete('/api/spotify/disconnect?coupleId=${Uri.encodeComponent(coupleId)}');
+    return result['ok'] == true;
   }
 }
 
@@ -145,15 +122,9 @@ class SpotifyTrack {
   final bool isPlaying;
 
   const SpotifyTrack({
-    required this.trackUri,
-    required this.trackId,
-    required this.trackName,
-    required this.artistName,
-    required this.albumName,
-    required this.albumArtUrl,
-    required this.positionMs,
-    required this.durationMs,
-    required this.isPlaying,
+    required this.trackUri, required this.trackId, required this.trackName,
+    required this.artistName, required this.albumName, required this.albumArtUrl,
+    required this.positionMs, required this.durationMs, required this.isPlaying,
   });
 
   factory SpotifyTrack.fromMap(Map<String, dynamic> d) => SpotifyTrack(
@@ -169,14 +140,10 @@ class SpotifyTrack {
   );
 
   double get progress => durationMs > 0 ? positionMs / durationMs : 0.0;
-
-  String get formattedPosition => _formatMs(positionMs);
-  String get formattedDuration => _formatMs(durationMs);
-
-  static String _formatMs(int ms) {
-    final s = ms ~/ 1000;
-    final m = s ~/ 60;
-    final sec = s % 60;
+  String get formattedPosition => _fmt(positionMs);
+  String get formattedDuration => _fmt(durationMs);
+  static String _fmt(int ms) {
+    final s = ms ~/ 1000; final m = s ~/ 60; final sec = s % 60;
     return '$m:${sec.toString().padLeft(2, '0')}';
   }
 }

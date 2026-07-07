@@ -95,16 +95,22 @@ class _SpotifyTogetherScreenState extends State<SpotifyTogetherScreen> {
     _statusPoller?.cancel();
     _statusPoller = Timer.periodic(const Duration(seconds: 5), (_) async {
       if (!mounted) return;
-      final s = await SpotifyApi.getStatus(_partnerUid.isNotEmpty ? _partnerUid : _uid);
+      // Always refresh BOTH statuses on each tick so we catch both sides
+      final myF = SpotifyApi.getStatus(_uid);
+      final partnerF = _partnerUid.isNotEmpty
+          ? SpotifyApi.getStatus(_partnerUid)
+          : Future.value(null as SpotifyStatus?);
+      final results = await Future.wait([myF, partnerF]);
       if (!mounted) return;
-      if (_partnerUid.isEmpty) {
-        setState(() => _myStatus = s);
-      } else {
-        setState(() => _partnerStatus = s);
-      }
-      if (_partnerStatus?.connected == true || _myStatus?.connected == true) {
+      setState(() {
+        _myStatus = results[0];
+        _partnerStatus = results[1];
+      });
+      // Only stop polling once BOTH partners are connected
+      if (_myStatus?.connected == true && _partnerStatus?.connected == true) {
         _statusPoller?.cancel();
-        _startConductorPoll();
+        if (_sync.isConductor) _startConductorPoll();
+        else _startListenerSync();
       }
     });
   }
@@ -157,7 +163,6 @@ class _SpotifyTogetherScreenState extends State<SpotifyTogetherScreen> {
 
       if (drift > 3000 || _currentTrack!.trackUri != session.contentId) {
         await SpotifyApi.syncToListener(
-          conductorUid: session.conductorId,
           listenerUid: _uid,
           trackUri: session.contentId,
           positionMs: remoteMs,
@@ -243,7 +248,7 @@ class _SpotifyTogetherScreenState extends State<SpotifyTogetherScreen> {
 
   Future<void> _disconnect() async {
     setState(() => _actionBusy = true);
-    await SpotifyApi.disconnect(_uid, widget.coupleId);
+    await SpotifyApi.disconnect(widget.coupleId);
     await _sync.endSession();
     setState(() { _myStatus = null; _currentTrack = null; _actionBusy = false; });
   }
@@ -253,9 +258,9 @@ class _SpotifyTogetherScreenState extends State<SpotifyTogetherScreen> {
     setState(() { _actionBusy = true; _errorMsg = null; });
     bool ok;
     if (_currentTrack?.isPlaying == true) {
-      ok = await SpotifyApi.pause(_uid);
+      ok = await SpotifyApi.pause();
     } else {
-      ok = await SpotifyApi.play(_uid, trackUri: _currentTrack?.trackUri);
+      ok = await SpotifyApi.play(trackUri: _currentTrack?.trackUri);
     }
     if (!ok && mounted) setState(() => _errorMsg = 'Spotify Premium required for playback control.');
     setState(() => _actionBusy = false);

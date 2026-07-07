@@ -1,0 +1,910 @@
+# HeartSync — Complete Replit Backend Prompt (Firebase)
+
+Paste this entire prompt into a NEW Replit project. Choose "Node.js" as the template.
+This is your complete backend — Spotify OAuth, AI features, RevenueCat webhooks,
+push notifications, sync sessions, and admin utilities — all using Firebase as the
+only database/storage layer.
+
+---
+
+## Step 1 — Replit Secrets (set these BEFORE running anything)
+
+```
+In Replit sidebar → Secrets, add exactly these keys:
+
+FIREBASE_SERVICE_ACCOUNT   → paste the entire JSON content of your Firebase service
+                              account key as a single-line string. Download it from:
+                              Firebase Console → Project Settings → Service Accounts
+                              → Generate new private key
+
+SPOTIFY_CLIENT_ID          → from https://developer.spotify.com/dashboard
+SPOTIFY_CLIENT_SECRET      → from the same Spotify dashboard app
+
+OPENAI_API_KEY             → from https://platform.openai.com/api-keys
+
+REVENUECAT_WEBHOOK_SECRET  → from RevenueCat Dashboard → Project → Integrations
+                              → Webhooks → Authorization header value
+
+SESSION_SECRET             → any random 32-character string, e.g.:
+                              openssl rand -hex 16 in your terminal
+
+FRONTEND_URL               → your Flutter app's custom deep-link scheme:
+                              heartsync://callback
+```
+
+---
+
+## Step 2 — package.json
+
+```
+Build this package.json exactly:
+
+{
+  "name": "heartsync-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "cookie-parser": "^1.4.6",
+    "express-session": "^1.17.3",
+    "firebase-admin": "^12.0.0",
+    "axios": "^1.6.0",
+    "openai": "^4.20.0",
+    "node-cron": "^3.0.3",
+    "uuid": "^9.0.0",
+    "querystring": "^0.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
+
+Run: npm install
+```
+
+---
+
+## Step 3 — Firebase initialisation (firebase.js)
+
+```javascript
+// firebase.js
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: 'heartsync-b4e9f.firebasestorage.app'
+  });
+}
+
+const db   = admin.firestore();
+const auth = admin.auth();
+const messaging = admin.messaging();
+const bucket = admin.storage().bucket();
+
+module.exports = { admin, db, auth, messaging, bucket };
+```
+
+---
+
+## Step 4 — Auth middleware (middleware/verifyToken.js)
+
+```javascript
+// middleware/verifyToken.js
+// Every protected route uses this. Reads the Firebase ID token from the
+// Authorization: Bearer <token> header sent by the Flutter app.
+
+const { auth } = require('../firebase');
+
+module.exports = async (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing token' });
+  }
+  try {
+    const token = header.split('Bearer ')[1];
+    req.user = await auth.verifyIdToken(token);
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token', detail: err.message });
+  }
+};
+```
+
+---
+
+## Step 5 — Couple helper (middleware/getCouple.js)
+
+```javascript
+// middleware/getCouple.js
+// Reads the user's coupleId from Firestore and attaches it to req.coupleId.
+// Use after verifyToken on any route that needs couple-scoped data.
+
+const { db } = require('../firebase');
+
+module.exports = async (req, res, next) => {
+  try {
+    const snap = await db
+      .collection('couples')
+      .where('members', 'array-contains', req.user.uid)
+      .where('status', '==', 'active')
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      return res.status(404).json({ error: 'No active couple space found' });
+    }
+    req.coupleId = snap.docs[0].id;
+    req.coupleData = snap.docs[0].data();
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: 'Could not resolve couple', detail: err.message });
+  }
+};
+```
+
+---
+
+## Step 6 — Spotify routes (routes/spotify.js)
+
+```javascript
+// routes/spotify.js
+// Handles the full Spotify OAuth flow and playback sync.
+// Keys stay on this server — the Flutter app never touches them.
+
+const express = require('express');
+const router  = express.Router();
+const axios   = require('axios');
+const qs      = require('querystring');
+const { db }  = require('../firebase');
+const verifyToken = require('../middleware/verifyToken');
+const getCouple   = require('../middleware/getCouple');
+
+const CLIENT_ID     = process.env.SPOTIFY_CLIENT_ID;
+const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const REDIRECT_URI  = 'https://YOUR_REPLIT_URL/api/spotify/callback';
+// Replace YOUR_REPLIT_URL with your actual Replit project URL, e.g.:
+// https://heartsync-backend.yourusername.repl.co
+
+// ── Step 1: Flutter calls this, gets back a Spotify login URL ──────────────
+router.get('/auth-url', verifyToken, (req, res) => {
+  const scopes = [
+    'user-read-playback-state',
+    'user-modify-playback-state',
+    'user-read-currently-playing',
+    'streaming'
+  ].join(' ');
+
+  const params = qs.stringify({
+    response_type: 'code',
+    client_id:     CLIENT_ID,
+    scope:         scopes,
+    redirect_uri:  REDIRECT_URI,
+    state:         req.user.uid   // pass uid so we know who's connecting
+  });
+
+  res.json({ url: `https://accounts.spotify.com/authorize?${params}` });
+});
+
+// ── Step 2: Spotify redirects here after user logs in ─────────────────────
+router.get('/callback', async (req, res) => {
+  const { code, state: uid, error } = req.query;
+  if (error) return res.send(`Spotify error: ${error}`);
+
+  try {
+    // Exchange auth code for tokens
+    const tokenRes = await axios.post(
+      'https://accounts.spotify.com/api/token',
+      qs.stringify({
+        grant_type:   'authorization_code',
+        code,
+        redirect_uri: REDIRECT_URI
+      }),
+      {
+        headers: {
+          'Content-Type':  'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
+        }
+      }
+    );
+
+    const { access_token, refresh_token, expires_in } = tokenRes.data;
+    const expiresAt = Date.now() + (expires_in * 1000);
+
+    // Store tokens in Firestore under the user's doc — never returned to Flutter
+    await db.collection('users').doc(uid).set(
+      { spotify: { accessToken: access_token, refreshToken: refresh_token, expiresAt } },
+      { merge: true }
+    );
+
+    // Deep-link back to Flutter app
+    res.redirect(`${process.env.FRONTEND_URL}?spotify=connected`);
+  } catch (err) {
+    console.error('Spotify callback error:', err.message);
+    res.status(500).send('Token exchange failed');
+  }
+});
+
+// ── Token refresh helper (internal, not a route) ──────────────────────────
+async function getValidToken(uid) {
+  const userDoc = await db.collection('users').doc(uid).get();
+  const spotify = userDoc.data()?.spotify;
+  if (!spotify) throw new Error('Spotify not connected for user ' + uid);
+
+  // Refresh if expiring within 5 minutes
+  if (Date.now() > spotify.expiresAt - 300000) {
+    const refreshRes = await axios.post(
+      'https://accounts.spotify.com/api/token',
+      qs.stringify({ grant_type: 'refresh_token', refresh_token: spotify.refreshToken }),
+      {
+        headers: {
+          'Content-Type':  'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
+        }
+      }
+    );
+    const { access_token, expires_in } = refreshRes.data;
+    const expiresAt = Date.now() + (expires_in * 1000);
+    await db.collection('users').doc(uid).update({
+      'spotify.accessToken': access_token,
+      'spotify.expiresAt':   expiresAt
+    });
+    return access_token;
+  }
+  return spotify.accessToken;
+}
+
+// ── Current track (conductor polls this) ─────────────────────────────────
+router.get('/current-track', verifyToken, async (req, res) => {
+  try {
+    const token = await getValidToken(req.user.uid);
+    const r = await axios.get('https://api.spotify.com/v1/me/player', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (r.status === 204 || !r.data) return res.json({ playing: false });
+    res.json({
+      playing:    r.data.is_playing,
+      trackId:    r.data.item?.id,
+      trackName:  r.data.item?.name,
+      artist:     r.data.item?.artists?.[0]?.name,
+      albumArt:   r.data.item?.album?.images?.[0]?.url,
+      positionMs: r.data.progress_ms,
+      durationMs: r.data.item?.duration_ms
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Apply playback state to listener's Spotify account ───────────────────
+router.post('/sync', verifyToken, getCouple, async (req, res) => {
+  const { listenerUid, action, positionMs, trackUri } = req.body;
+
+  // Only the conductor (request sender) can push state to the listener
+  if (!req.coupleData.members.includes(listenerUid)) {
+    return res.status(403).json({ error: 'listenerUid not in your couple space' });
+  }
+
+  try {
+    const token = await getValidToken(listenerUid);
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+    if (action === 'play') {
+      await axios.put('https://api.spotify.com/v1/me/player/play',
+        trackUri ? { uris: [trackUri], position_ms: positionMs || 0 } : {},
+        { headers }
+      );
+    } else if (action === 'pause') {
+      await axios.put('https://api.spotify.com/v1/me/player/pause', {}, { headers });
+    } else if (action === 'seek') {
+      await axios.put(
+        `https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}`,
+        {}, { headers }
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Disconnect Spotify ────────────────────────────────────────────────────
+router.delete('/disconnect', verifyToken, async (req, res) => {
+  await db.collection('users').doc(req.user.uid).update({ spotify: admin.firestore.FieldValue.delete() });
+  res.json({ success: true });
+});
+
+module.exports = router;
+```
+
+---
+
+## Step 7 — AI routes (routes/ai.js)
+
+```javascript
+// routes/ai.js
+const express = require('express');
+const router  = express.Router();
+const OpenAI  = require('openai');
+const { db, admin } = require('../firebase');
+const verifyToken   = require('../middleware/verifyToken');
+const getCouple     = require('../middleware/getCouple');
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ── Shared helper: log usage for cost monitoring ──────────────────────────
+async function logUsage(coupleId, endpoint, usage) {
+  const cost = ((usage.prompt_tokens + usage.completion_tokens) / 1000) * 0.002;
+  await db.collection('admin').doc('ai_usage').collection('logs').add({
+    coupleId, endpoint,
+    promptTokens:     usage.prompt_tokens,
+    completionTokens: usage.completion_tokens,
+    costEstimate:     cost,
+    timestamp:        admin.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+// ── Generic generate (love letter, anniversary, birthday, apology, poem) ──
+router.post('/generate', verifyToken, getCouple, async (req, res) => {
+  const { type, tone, context } = req.body;
+
+  const prompts = {
+    'love-letter':   `Write a heartfelt romantic love letter. Tone: ${tone || 'warm'}. Context: ${context || ''}. 3 paragraphs, genuine and emotional.`,
+    'anniversary':   `Write a beautiful anniversary message. Tone: ${tone || 'romantic'}. Context: ${context || ''}. Keep it personal and loving.`,
+    'birthday':      `Write a sweet birthday message for a romantic partner. Tone: ${tone || 'playful'}. Context: ${context || ''}.`,
+    'apology':       `Write a sincere and loving apology message. Tone: ${tone || 'sincere'}. Context: ${context || ''}. Genuine, not dramatic.`,
+    'poem':          `Write a short romantic poem (12-16 lines). Tone: ${tone || 'lyrical'}. Context: ${context || ''}. Original, not clichéd.`,
+    'good-morning':  `Write a sweet good morning message for a long-distance partner. Warm, personal, under 3 sentences.`,
+    'good-night':    `Write a tender good night message for a long-distance partner. Comforting, loving, under 3 sentences.`
+  };
+
+  if (!prompts[type]) return res.status(400).json({ error: 'Unknown type: ' + type });
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',   // cheaper than gpt-4, plenty good for this use case
+      max_tokens: 400,
+      messages: [
+        { role: 'system', content: 'You write beautiful, sincere romantic messages for couples in long-distance relationships. Never use clichés like "words cannot express." Be genuine and specific.' },
+        { role: 'user',   content: prompts[type] }
+      ]
+    });
+
+    await logUsage(req.coupleId, type, completion.usage);
+    res.json({ text: completion.choices[0].message.content.trim() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Caption for a memory photo ────────────────────────────────────────────
+router.post('/caption', verifyToken, getCouple, async (req, res) => {
+  const { memoryDate, tags } = req.body;
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 80,
+      messages: [
+        { role: 'system', content: 'Write short, sweet photo captions for couples. Under 15 words. Warm and genuine.' },
+        { role: 'user',   content: `Caption for a couple memory. Date: ${memoryDate || 'unknown'}. Tags: ${tags?.join(', ') || 'none'}. Write 3 options, one per line.` }
+      ]
+    });
+    await logUsage(req.coupleId, 'caption', completion.usage);
+    const options = completion.choices[0].message.content.trim().split('\n').filter(Boolean);
+    res.json({ captions: options });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Monthly relationship recap ────────────────────────────────────────────
+router.post('/monthly-recap', verifyToken, getCouple, async (req, res) => {
+  const { month, year, stats } = req.body;
+  // stats = { memoriesAdded, messagesSent, hugsGiven, notesShared, challengesCompleted, moodSummary }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 250,
+      messages: [
+        { role: 'system', content: 'You write warm, personal monthly relationship recaps. Focus on connection and growth, not just numbers. 2-3 short paragraphs.' },
+        { role: 'user',   content: `Write a monthly recap for a long-distance couple for ${month} ${year}. Stats: ${JSON.stringify(stats)}. Make it feel special and personal.` }
+      ]
+    });
+    await logUsage(req.coupleId, 'monthly-recap', completion.usage);
+    res.json({ recap: completion.choices[0].message.content.trim() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Relationship insights ─────────────────────────────────────────────────
+router.post('/insights', verifyToken, getCouple, async (req, res) => {
+  const { stats } = req.body;
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 200,
+      messages: [
+        { role: 'system', content: 'You give warm, encouraging relationship insights for long-distance couples. Be positive and actionable, never clinical.' },
+        { role: 'user',   content: `Give 3 short insights for a couple based on this activity: ${JSON.stringify(stats)}. Each insight one sentence. Label them: This month ❤️, Growing together 🌱, Try this week 💡` }
+      ]
+    });
+    await logUsage(req.coupleId, 'insights', completion.usage);
+    res.json({ insights: completion.choices[0].message.content.trim() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+```
+
+---
+
+## Step 8 — Sync session routes (routes/sync.js)
+
+```javascript
+// routes/sync.js
+// Couple Radio and YouTube sync — the SyncSessionController backend.
+// Spotify sync is handled in routes/spotify.js already.
+
+const express = require('express');
+const router  = express.Router();
+const { db, admin, messaging } = require('../firebase');
+const verifyToken = require('../middleware/verifyToken');
+const getCouple   = require('../middleware/getCouple');
+
+// ── Start or update a sync session ───────────────────────────────────────
+router.post('/session', verifyToken, getCouple, async (req, res) => {
+  const { type, contentId, state, positionMs } = req.body;
+  // type: 'radio' | 'youtube' | 'spotify'
+  // state: 'playing' | 'paused' | 'ended' | 'idle'
+
+  try {
+    await db.collection('couples').doc(req.coupleId)
+      .collection('syncSession').doc('current').set({
+        type,
+        contentId,
+        state,
+        positionMs:  positionMs || 0,
+        conductorId: req.user.uid,
+        updatedAt:   admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+    // Notify the partner via FCM so they can join
+    if (state === 'playing') {
+      const partnerUid = req.coupleData.members.find(m => m !== req.user.uid);
+      if (partnerUid) {
+        const partnerDoc = await db.collection('users').doc(partnerUid).get();
+        const fcmToken   = partnerDoc.data()?.fcmToken;
+        if (fcmToken) {
+          await messaging.send({
+            token: fcmToken,
+            notification: {
+              title: '🎵 Sync Zone',
+              body:  type === 'youtube' ? 'Your partner started a watch session ▶️' : 'Your partner started Couple Radio 🎵'
+            },
+            data: { type: 'sync_invite', sessionType: type, coupleId: req.coupleId }
+          }).catch(e => console.log('FCM error:', e.message));
+        }
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── End session ───────────────────────────────────────────────────────────
+router.delete('/session', verifyToken, getCouple, async (req, res) => {
+  await db.collection('couples').doc(req.coupleId)
+    .collection('syncSession').doc('current')
+    .set({ state: 'idle', updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  res.json({ success: true });
+});
+
+// ── Add track to Couple Radio queue ──────────────────────────────────────
+router.post('/radio/track', verifyToken, getCouple, async (req, res) => {
+  const { title, artistName, storageUrl, durationMs } = req.body;
+  if (!storageUrl) return res.status(400).json({ error: 'storageUrl required' });
+
+  try {
+    const ref = await db.collection('couples').doc(req.coupleId)
+      .collection('radioTracks').add({
+        title, artistName, storageUrl, durationMs,
+        addedBy:   req.user.uid,
+        addedAt:   admin.firestore.FieldValue.serverTimestamp(),
+        playCount: 0
+      });
+    res.json({ id: ref.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Get Couple Radio queue ────────────────────────────────────────────────
+router.get('/radio/tracks', verifyToken, getCouple, async (req, res) => {
+  const snap = await db.collection('couples').doc(req.coupleId)
+    .collection('radioTracks').orderBy('addedAt', 'asc').get();
+  const tracks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  res.json({ tracks });
+});
+
+// ── Add video to Watch List ───────────────────────────────────────────────
+router.post('/watchlist', verifyToken, getCouple, async (req, res) => {
+  const { videoId, title, thumbnail } = req.body;
+  if (!videoId) return res.status(400).json({ error: 'videoId required' });
+  const ref = await db.collection('couples').doc(req.coupleId)
+    .collection('watchList').add({
+      videoId, title, thumbnail,
+      addedBy: req.user.uid,
+      addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      watched: false
+    });
+  res.json({ id: ref.id });
+});
+
+module.exports = router;
+```
+
+---
+
+## Step 9 — Push notifications + feature flags (routes/auth.js)
+
+```javascript
+// routes/auth.js
+const express = require('express');
+const router  = express.Router();
+const { db, admin, messaging } = require('../firebase');
+const verifyToken = require('../middleware/verifyToken');
+
+// ── Register/update FCM token for this device ─────────────────────────────
+router.post('/fcm-token', verifyToken, async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ error: 'token required' });
+  await db.collection('users').doc(req.user.uid).set(
+    { fcmToken: token, lastSeen: admin.firestore.FieldValue.serverTimestamp() },
+    { merge: true }
+  );
+  // Subscribe to broadcast topic
+  await messaging.subscribeToTopic([token], 'all-users').catch(e => console.log(e.message));
+  res.json({ success: true });
+});
+
+// ── Send a hug/kiss push to partner ──────────────────────────────────────
+router.post('/send-reaction', verifyToken, async (req, res) => {
+  const { type, coupleId, senderName } = req.body;
+  // type: 'hug' | 'kiss' | 'miss-you'
+
+  const copy = {
+    hug:       { title: '🫂 Warm Hug', body: `${senderName} is hugging you right now ❤️` },
+    kiss:      { title: '💋 Kiss!',    body: `${senderName} just kissed you 💋` },
+    'miss-you':{ title: '💭 Miss You', body: `${senderName} is missing you right now 🥺` }
+  };
+
+  try {
+    const coupleDoc = await db.collection('couples').doc(coupleId).get();
+    const partnerUid = coupleDoc.data().members.find(m => m !== req.user.uid);
+    const partnerDoc = await db.collection('users').doc(partnerUid).get();
+    const fcmToken   = partnerDoc.data()?.fcmToken;
+
+    if (fcmToken && copy[type]) {
+      await messaging.send({
+        token: fcmToken,
+        notification: copy[type],
+        data: { type, coupleId }
+      });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Broadcast notification (admin only, isAdmin custom claim required) ────
+router.post('/broadcast', verifyToken, async (req, res) => {
+  if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+  const { title, body } = req.body;
+  await messaging.sendToTopic('all-users', { notification: { title, body } });
+  res.json({ success: true });
+});
+
+module.exports = router;
+```
+
+---
+
+## Step 10 — RevenueCat webhook (routes/webhooks.js)
+
+```javascript
+// routes/webhooks.js
+const express = require('express');
+const router  = express.Router();
+const { db, admin } = require('../firebase');
+
+router.post('/revenuecat', async (req, res) => {
+  // Verify the Authorization header matches your webhook secret
+  const authHeader = req.headers.authorization;
+  if (authHeader !== process.env.REVENUECAT_WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const event = JSON.parse(req.body.toString());
+    const { type, app_user_id: uid, product_id, expiration_at_ms } = event.event;
+
+    const tierMap = {
+      'heartsync_premium_monthly':  'premium',
+      'heartsync_lifetime':         'lifetime'
+    };
+
+    const tier = tierMap[product_id] || 'premium';
+
+    // Log the raw event
+    await db.collection('admin').doc('revenuecat_events').collection('logs').add({
+      ...event.event,
+      receivedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Update the couple's subscription doc
+    if (['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION'].includes(type)) {
+      // Find couple for this user
+      const coupleSnap = await db.collection('couples')
+        .where('members', 'array-contains', uid).limit(1).get();
+      if (!coupleSnap.empty) {
+        await db.collection('couples').doc(coupleSnap.docs[0].id)
+          .collection('subscription').doc('current').set({
+            tier,
+            expiresAt:     expiration_at_ms ? new Date(expiration_at_ms) : null,
+            revenueCatId:  uid,
+            updatedAt:     admin.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+      }
+    }
+
+    if (['EXPIRATION', 'CANCELLATION'].includes(type)) {
+      const coupleSnap = await db.collection('couples')
+        .where('members', 'array-contains', uid).limit(1).get();
+      if (!coupleSnap.empty) {
+        await db.collection('couples').doc(coupleSnap.docs[0].id)
+          .collection('subscription').doc('current').set(
+            { tier: 'free', updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true }
+          );
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('RevenueCat webhook error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+```
+
+---
+
+## Step 11 — Scheduled jobs (cron.js — called from server.js)
+
+```javascript
+// cron.js — add require('./cron') at the bottom of server.js
+const cron = require('node-cron');
+const { db, admin } = require('./firebase');
+
+// Daily stats aggregation — runs at midnight UTC
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running daily stats aggregation...');
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateStr = yesterday.toISOString().split('T')[0];
+
+  const since = admin.firestore.Timestamp.fromDate(yesterday);
+
+  try {
+    const [couples, users] = await Promise.all([
+      db.collection('couples').count().get(),
+      db.collection('users').count().get()
+    ]);
+
+    await db.collection('admin').doc('stats').collection('daily').doc(dateStr).set({
+      totalCouples: couples.data().count,
+      totalUsers:   users.data().count,
+      date:         dateStr,
+      generatedAt:  admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log('Daily stats done for', dateStr);
+  } catch (err) {
+    console.error('Stats cron error:', err.message);
+  }
+});
+
+// Clean up stale sync sessions older than 24h — runs every hour
+cron.schedule('0 * * * *', async () => {
+  const cutoff = new Date(Date.now() - 86400000);
+  const snap = await db.collectionGroup('syncSession')
+    .where('state', '==', 'idle')
+    .where('updatedAt', '<', admin.firestore.Timestamp.fromDate(cutoff))
+    .get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  if (!snap.empty) await batch.commit();
+  console.log(`Cleaned ${snap.size} stale sync sessions`);
+});
+
+// Monthly recap trigger — 1st of each month at 8am UTC
+cron.schedule('0 8 1 * *', async () => {
+  console.log('Monthly recap trigger running...');
+  const now   = new Date();
+  const month = now.toLocaleString('default', { month: 'long' });
+  const year  = now.getFullYear();
+
+  const couplesSnap = await db.collection('couples').where('status', '==', 'active').get();
+
+  for (const coupleDoc of couplesSnap.docs) {
+    const coupleId = coupleDoc.id;
+    const monthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const [memories, messages, moods] = await Promise.all([
+      db.collection('couples').doc(coupleId).collection('memories')
+        .where('date', '>=', monthStart).where('date', '<=', monthEnd).count().get(),
+      db.collection('couples').doc(coupleId).collection('messages')
+        .where('sentAt', '>=', admin.firestore.Timestamp.fromDate(monthStart))
+        .where('sentAt', '<=', admin.firestore.Timestamp.fromDate(monthEnd)).count().get(),
+      db.collection('couples').doc(coupleId).collection('moods')
+        .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(monthStart)).get()
+    ]);
+
+    const moodCounts = {};
+    moods.docs.forEach(d => {
+      const m = d.data().mood;
+      moodCounts[m] = (moodCounts[m] || 0) + 1;
+    });
+
+    await db.collection('couples').doc(coupleId)
+      .collection('monthlyRecaps').doc(`${year}-${String(now.getMonth()).padStart(2,'0')}`).set({
+        month, year,
+        memoriesAdded:  memories.data().count,
+        messagesSent:   messages.data().count,
+        moodSummary:    moodCounts,
+        generatedAt:    admin.firestore.FieldValue.serverTimestamp()
+      });
+  }
+  console.log(`Monthly recaps written for ${couplesSnap.size} couples`);
+});
+```
+
+---
+
+## Step 12 — Final server.js (complete, with cron)
+
+```javascript
+// server.js — final version
+const express      = require('express');
+const cors         = require('cors');
+const cookieParser = require('cookie-parser');
+
+require('./firebase'); // init once
+
+const app = express();
+
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser());
+app.use('/api/webhooks/revenuecat', express.raw({ type: 'application/json' }));
+app.use(express.json());
+
+app.use('/api/auth',     require('./routes/auth'));
+app.use('/api/spotify',  require('./routes/spotify'));
+app.use('/api/ai',       require('./routes/ai'));
+app.use('/api/webhooks', require('./routes/webhooks'));
+app.use('/api/sync',     require('./routes/sync'));
+
+app.get('/', (_req, res) => res.json({ status: 'HeartSync backend ❤️', version: '1.0.0' }));
+app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
+
+require('./cron'); // start scheduled jobs
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`HeartSync backend running on port ${PORT}`));
+```
+
+---
+
+## Step 13 — Flutter: how to call this backend
+
+```dart
+// In your Flutter app, every API call follows this pattern.
+// Put your Replit URL in a constants file — never hardcode it per-call.
+
+// lib/core/constants.dart
+const String kBackendUrl = 'https://YOUR_REPLIT_URL'; // e.g. https://heartsync.yourusername.repl.co
+
+// lib/core/api_client.dart
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'constants.dart';
+
+Future<Map<String, dynamic>> backendPost(String path, Map body) async {
+  final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+  final res = await http.post(
+    Uri.parse('$kBackendUrl$path'),
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode(body),
+  );
+  return jsonDecode(res.body);
+}
+
+Future<Map<String, dynamic>> backendGet(String path) async {
+  final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+  final res = await http.get(
+    Uri.parse('$kBackendUrl$path'),
+    headers: { 'Authorization': 'Bearer $token' },
+  );
+  return jsonDecode(res.body);
+}
+
+// Usage examples:
+// AI love letter:
+// final result = await backendPost('/api/ai/generate', {'type': 'love-letter', 'tone': 'romantic'});
+
+// Send hug notification:
+// await backendPost('/api/auth/send-reaction', {'type': 'hug', 'coupleId': coupleId, 'senderName': 'Tanvir'});
+
+// Start Couple Radio sync:
+// await backendPost('/api/sync/session', {'type': 'radio', 'contentId': trackId, 'state': 'playing', 'positionMs': 0});
+```
+
+---
+
+## Step 14 — Replit keep-alive (important)
+
+```
+Free Replit projects sleep after inactivity. Add this to keep your backend alive:
+
+1. In Replit, go to your project → "Deployments" tab → Deploy as a Reserved VM
+   (paid) OR use UptimeRobot (free) to ping your backend URL every 5 minutes:
+   https://YOUR_REPLIT_URL/
+
+   UptimeRobot setup: https://uptimerobot.com → Add Monitor → HTTP → paste your URL
+   → 5 minute interval → free plan is enough.
+
+2. This is critical before launch — if your backend sleeps, Spotify sync, AI features,
+   and push notifications all stop working until it wakes up (30-60s delay).
+```
+
+---
+
+## File structure summary
+
+```
+heartsync-backend/
+├── server.js          ← entry point
+├── firebase.js        ← admin SDK init
+├── cron.js            ← scheduled jobs
+├── package.json
+├── middleware/
+│   ├── verifyToken.js ← Firebase ID token check
+│   └── getCouple.js   ← resolves coupleId for the current user
+└── routes/
+    ├── auth.js        ← FCM token, hug/kiss push, broadcast
+    ├── spotify.js     ← OAuth flow + playback sync
+    ├── ai.js          ← love letters, captions, recaps, insights
+    ├── sync.js        ← Couple Radio, YouTube watchlist, session management
+    └── webhooks.js    ← RevenueCat subscription events
+```

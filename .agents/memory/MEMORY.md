@@ -7,3 +7,4 @@
 - [Flutter auth timeout](flutter-auth-timeout.md) — authStateChanges() hangs indefinitely in Replit preview; _AuthGate must be StatefulWidget with 6-second timer to force show LoginScreen
 - [Admin console design system](admin-console-design.md) — glassmorphism CSS in index.css; classes: .glass-card, .stat-card, .nav-item, .btn-grad, .input-glass, .grad-text, .sidebar-glass
 - [Sync Zone architecture](sync-zone-architecture.md) — Phase Y/Z/R/S sync features; SyncSessionController optimistic state pattern; package versions (audioplayers 6.x, youtube_player_iframe 5.2.2); Firestore data model
+- [Spotify sync architecture](spotify-sync-architecture.md) — write endpoints use api_client.dart (Firebase token); server resolves UID from token; sync validates listenerUid is in couple

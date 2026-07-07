@@ -1,0 +1,613 @@
+# HeartSync — Sync Zone: Complete Flutter Implementation Prompt
+
+Paste this into your existing Flutter project agent session alongside your
+original Session Context. This builds the entire Sync Zone feature end-to-end —
+UI, Spotify OAuth (no manual key entry ever), YouTube Watch Together, and
+Couple Radio — all wired to the Replit backend already built.
+
+---
+
+## Context reminder for the agent
+
+```
+Backend is already running at kBackendUrl (defined in lib/core/constants.dart).
+Every call uses backendPost() / backendGet() from lib/core/api_client.dart which
+attaches the Firebase ID token automatically. Never call Spotify or YouTube APIs
+directly from Flutter — always go through the Replit backend.
+
+Firebase project: heartsync-b4e9f
+Firestore real-time listener path for sync state: 
+  couples/{coupleId}/syncSession/current
+```
+
+---
+
+## Required Flutter packages — add to pubspec.yaml
+
+```yaml
+dependencies:
+  # YouTube player
+  youtube_player_flutter: ^8.1.2
+  
+  # Audio playback for Couple Radio  
+  just_audio: ^0.9.36
+  audio_session: ^0.1.18
+  
+  # Deep link handling (Spotify OAuth callback)
+  app_links: ^6.0.0
+  
+  # In-app browser for Spotify login
+  flutter_inappwebview: ^6.0.0
+  
+  # Shimmer loading effect
+  shimmer: ^3.0.0
+  
+  # Cached network images (album art)
+  cached_network_image: ^3.3.0
+  
+  # Lottie animations
+  lottie: ^3.0.0
+```
+
+---
+
+## File structure to create
+
+```
+lib/features/sync_zone/
+├── sync_zone_screen.dart          ← main hub screen
+├── couple_radio_screen.dart       ← Couple Radio player
+├── watch_together_screen.dart     ← YouTube Watch Together
+├── spotify_together_screen.dart   ← Spotify sync
+├── controllers/
+│   ├── sync_session_controller.dart   ← Firestore listener + state
+│   ├── couple_radio_controller.dart   ← just_audio wrapper
+│   └── spotify_controller.dart        ← OAuth + sync calls
+├── widgets/
+│   ├── sync_zone_card.dart            ← feature card widget
+│   ├── partner_avatar_pair.dart       ← two avatars + pulse line
+│   ├── active_session_banner.dart     ← shows if session running
+│   ├── cassette_player_widget.dart    ← Couple Radio UI
+│   ├── reaction_overlay.dart          ← emoji reactions on Watch Together
+│   └── connection_pulse_line.dart     ← animated line between partners
+```
+
+---
+
+## 1. SyncSessionController (lib/features/sync_zone/controllers/sync_session_controller.dart)
+
+```dart
+// Listens to Firestore syncSession doc in real time.
+// Both conductor and listener read from this; only conductor writes.
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import '../../../core/api_client.dart';
+
+enum SyncState { idle, playing, paused, ended }
+enum SyncType  { radio, youtube, spotify }
+
+class SyncSession {
+  final SyncType  type;
+  final String    contentId;
+  final SyncState state;
+  final int       positionMs;
+  final String    conductorId;
+
+  SyncSession({
+    required this.type,
+    required this.contentId,
+    required this.state,
+    required this.positionMs,
+    required this.conductorId,
+  });
+
+  factory SyncSession.fromMap(Map<String, dynamic> data) => SyncSession(
+    type:        SyncType.values.firstWhere((e) => e.name == (data['type'] ?? 'radio')),
+    contentId:   data['contentId'] ?? '',
+    state:       SyncState.values.firstWhere((e) => e.name == (data['state'] ?? 'idle')),
+    positionMs:  data['positionMs'] ?? 0,
+    conductorId: data['conductorId'] ?? '',
+  );
+}
+
+class SyncSessionController extends ChangeNotifier {
+  SyncSession? currentSession;
+  bool get hasActiveSession =>
+      currentSession != null && currentSession!.state != SyncState.idle;
+  bool get isConductor =>
+      currentSession?.conductorId == FirebaseAuth.instance.currentUser?.uid;
+
+  StreamSubscription? _sub;
+
+  void startListening(String coupleId) {
+    _sub = FirebaseFirestore.instance
+        .collection('couples').doc(coupleId)
+        .collection('syncSession').doc('current')
+        .snapshots()
+        .listen((snap) {
+      if (snap.exists && snap.data() != null) {
+        currentSession = SyncSession.fromMap(snap.data()!);
+        notifyListeners();
+      }
+    });
+  }
+
+  // Conductor: push new state to Firestore + backend (which notifies partner)
+  Future<void> updateSession({
+    required String   coupleId,
+    required SyncType type,
+    required String   contentId,
+    required SyncState state,
+    int positionMs = 0,
+  }) async {
+    await backendPost('/api/sync/session', {
+      'type':       type.name,
+      'contentId':  contentId,
+      'state':      state.name,
+      'positionMs': positionMs,
+    });
+  }
+
+  Future<void> endSession() async {
+    await backendPost('/api/sync/session', {'state': 'idle', 'type': 'radio', 'contentId': ''});
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+}
+```
+
+---
+
+## 2. Sync Zone Hub Screen (lib/features/sync_zone/sync_zone_screen.dart)
+
+```dart
+// The main Sync Zone screen — shows partner avatars, active session banner,
+// and three feature cards. Entry point from Home feature carousel.
+
+Build this screen with the following layout (SingleChildScrollView > Column):
+
+┌─────────────────────────────────────────────────────┐
+│  AppBar: "Sync Zone 🎵" — no back button if from nav │
+├─────────────────────────────────────────────────────┤
+│  PartnerAvatarPair widget (see below)               │
+│  "Together even apart ❤️" subtitle                  │
+├─────────────────────────────────────────────────────┤
+│  ActiveSessionBanner (only if session is running)   │
+├─────────────────────────────────────────────────────┤
+│  "Choose an experience" section label               │
+│                                                     │
+│  SyncZoneCard: Couple Radio 🎵                      │
+│    "Your private music station"                     │
+│    gradient: rose gold → champagne                  │
+│    → navigates to CoupleRadioScreen                 │
+│                                                     │
+│  SyncZoneCard: Spotify Together 🎧                  │
+│    "Listen in perfect sync"                         │
+│    gradient: spotify green (#1DB954) → dark green   │
+│    → if Spotify not connected: show ConnectSpotify  │
+│    → if connected: navigates to SpotifyTogetherScreen│
+│                                                     │
+│  SyncZoneCard: Watch Together 🎬                    │
+│    "YouTube, together in sync"                      │
+│    gradient: youtube red → deep plum                │
+│    → navigates to WatchTogetherScreen               │
+└─────────────────────────────────────────────────────┘
+
+PartnerAvatarPair widget:
+- Two circular avatars (your photo and partner's photo from Firestore)
+  side by side with ~40px gap between them
+- A ConnectionPulseLine between them: a horizontal gradient line
+  (rose gold → lavender) that pulses its opacity 0.3 → 1.0 → 0.3 on a
+  2-second AnimationController, showing the live connection between partners
+- Below the line: if partner is online (presence doc), show a green dot + "Online now"
+  else "Last seen X ago"
+
+ActiveSessionBanner widget:
+- GlassCard with a pulsing music note or play icon
+- Shows: session type icon + "Currently listening/watching together"
+- A "Rejoin" button that navigates back to the active session screen
+- Only visible when SyncSessionController.hasActiveSession is true
+
+SyncZoneCard widget:
+- Rounded card (24px radius) with a gradient background
+- Large emoji icon (52px) in a frosted circle
+- Bold title (18px, Quicksand/Baloo 2 if Sweetheart theme)
+- Subtitle (14px, 70% opacity)
+- A right-arrow chevron
+- On tap: scale 0.96 → 1.0 (quick squish) then navigate
+- If card requires a connection (Spotify): show a small "Not connected" 
+  badge in the top-right corner of the card when not yet connected
+```
+
+---
+
+## 3. Spotify OAuth Flow — NO manual key entry, ever
+
+```dart
+// SpotifyController (lib/features/sync_zone/controllers/spotify_controller.dart)
+// 
+// The flow:
+// 1. Flutter calls backend → gets a Spotify login URL
+// 2. Opens that URL in an InAppWebView (flutter_inappwebview)
+// 3. User logs into Spotify in the webview (their own account, their own password)
+// 4. Spotify redirects to your Replit backend callback
+// 5. Backend saves tokens, redirects to heartsync://callback?spotify=connected
+// 6. app_links package catches the deep link → closes webview → updates UI
+//
+// User NEVER sees an API key. User NEVER types credentials into HeartSync.
+// They log into Spotify's own official login page, same as logging into Spotify app.
+
+class SpotifyController extends ChangeNotifier {
+  bool isConnected = false;
+  bool isLoading   = false;
+  Map<String, dynamic>? currentTrack;
+
+  // Check if Spotify is already connected (token exists in Firestore)
+  Future<void> checkConnection() async {
+    try {
+      final result = await backendGet('/api/spotify/current-track');
+      isConnected = result['error'] == null;
+    } catch (_) {
+      isConnected = false;
+    }
+    notifyListeners();
+  }
+
+  // Step 1: get login URL from backend, open in webview
+  Future<void> connectSpotify(BuildContext context) async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await backendGet('/api/spotify/auth-url');
+      final url    = result['url'] as String;
+
+      // Open Spotify's official login page in an in-app webview
+      // The webview closes automatically when app_links catches the deep link
+      await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => SpotifyLoginWebView(loginUrl: url),
+      ));
+
+      // After webview closes, check if connection succeeded
+      await checkConnection();
+    } catch (e) {
+      // show error snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not connect Spotify: $e'))
+      );
+    }
+    isLoading = false;
+    notifyListeners();
+  }
+
+  // Polls current track (conductor only, every 5 seconds)
+  Future<void> fetchCurrentTrack() async {
+    final result = await backendGet('/api/spotify/current-track');
+    if (result['trackId'] != null) {
+      currentTrack = result;
+      notifyListeners();
+    }
+  }
+
+  Future<void> disconnect() async {
+    await backendPost('/api/spotify/disconnect', {});
+    isConnected  = false;
+    currentTrack = null;
+    notifyListeners();
+  }
+}
+
+// SpotifyLoginWebView widget:
+// A full-screen InAppWebView loading the Spotify login URL.
+// Intercepts URL changes — when it sees "heartsync://callback", 
+// it closes itself (Navigator.pop) and app_links handles the rest.
+
+class SpotifyLoginWebView extends StatefulWidget {
+  final String loginUrl;
+  // Build a full-screen Scaffold with:
+  // - AppBar: "Connect Spotify" with a close X button
+  // - InAppWebView loading loginUrl
+  // - Override shouldOverrideUrlLoading: if url starts with "heartsync://",
+  //   call Navigator.pop(context) and return NavigationActionPolicy.CANCEL
+  //   so the webview doesn't try to navigate to the deep link itself
+}
+```
+
+---
+
+## 4. Spotify Together Screen (lib/features/sync_zone/spotify_together_screen.dart)
+
+```dart
+// Layout (dark atmospheric — works in both themes):
+
+┌─────────────────────────────────────────────────────┐
+│  Back arrow | "Listening Together 🎧" | Settings    │
+├─────────────────────────────────────────────────────┤
+│  Album art (200x200, rounded 20px, glow shadow)     │
+│  Track name (24px bold, Fraunces/Baloo)             │
+│  Artist name (16px, 60% opacity)                    │
+├─────────────────────────────────────────────────────┤
+│  PartnerAvatarPair (compact version, 40px avatars)  │
+│  "Both listening ❤️" or "Partner not in session"    │
+├─────────────────────────────────────────────────────┤
+│  Progress bar (read-only if listener, interactive   │
+│  if conductor) — rose-gold fill, rounded            │
+│  Current time        Total duration                 │
+├─────────────────────────────────────────────────────┤
+│  Controls row (conductor sees full controls,        │
+│  listener sees greyed-out controls + "Your partner  │
+│  is controlling playback" label):                   │
+│       ⏮  ⏪  ▶/⏸  ⏩  ⏭                          │
+├─────────────────────────────────────────────────────┤
+│  "Become conductor" button (listener only)          │
+│  → calls POST /api/sync/session with their uid      │
+├─────────────────────────────────────────────────────┤
+│  HeartbeatPulse visual at bottom — two hearts       │
+│  beating in the background at very low opacity      │
+└─────────────────────────────────────────────────────┘
+
+Logic:
+- Conductor: poll /api/spotify/current-track every 5 seconds, write result
+  to Firestore syncSession doc via /api/sync/session
+- Listener: Firestore snapshot listener on syncSession/current — on state
+  change, call /api/spotify/sync to apply same playback to their Spotify account
+- Drift tolerance: if |local_position - syncSession.positionMs| > 3000ms,
+  call seek. Under 3 seconds, do nothing.
+- Position display updates from the listener's own Spotify current-track poll
+  (every 5s) so the progress bar moves smoothly for them too.
+```
+
+---
+
+## 5. Couple Radio Screen (lib/features/sync_zone/couple_radio_screen.dart)
+
+```dart
+// Full audio player for the couple's shared uploaded tracks.
+// Uses just_audio for local playback, Firestore for sync state.
+
+Layout:
+
+┌─────────────────────────────────────────────────────┐
+│  AppBar: "Couple Radio 🎵" | Add track button (FAB)  │
+├─────────────────────────────────────────────────────┤
+│  CassettePlayerWidget (the signature visual):        │
+│                                                      │
+│    ┌──────────────────────────────────┐              │
+│    │   🎵  [Track title]              │              │
+│    │       [Artist name]              │              │
+│    │                                  │              │
+│    │   ○──────────────────────○       │   ← two     │
+│    │   (spinning reel animation       │     reels   │
+│    │    when playing, stopped         │             │
+│    │    when paused — use            │             │
+│    │    AnimationController +        │             │
+│    │    RotationTransition)          │             │
+│    │                                  │              │
+│    └──────────────────────────────────┘              │
+│  Rose-gold/champagne gradient card, 24px radius      │
+├─────────────────────────────────────────────────────┤
+│  Progress: LinearProgressIndicator + time display    │
+├─────────────────────────────────────────────────────┤
+│  Controls: ⏮  ▶/⏸  ⏭   (conductor only active)   │
+│  "Your partner is DJ" badge when you are listener   │
+├─────────────────────────────────────────────────────┤
+│  PartnerAvatarPair (compact)                         │
+│  "You're both listening ❤️"                          │
+├─────────────────────────────────────────────────────┤
+│  Queue section: ListView of radioTracks              │
+│  Each row: track title, artist, added-by avatar,    │
+│  duration, a delete icon (only for tracks you added) │
+│  Tap a row: conductor can skip to that track        │
+└─────────────────────────────────────────────────────┘
+
+Add Track flow (FAB → bottom sheet):
+- Title text field
+- Artist name field  
+- Pick audio file from device (file_picker package)
+- Upload to Firebase Storage at couples/{id}/radioTracks/{filename}
+- On upload complete: POST /api/sync/radio/track with { title, artistName,
+  storageUrl, durationMs }
+- Show upload progress as a linear indicator in the sheet
+- Close sheet and refresh queue on success
+
+Conductor sync logic:
+- When conductor taps play/pause/skip, update just_audio locally AND call
+  POST /api/sync/session with current state + positionMs
+- Write position update every 5 seconds via a Timer.periodic
+
+Listener sync logic:
+- Firestore snapshot on syncSession/current
+- When state changes: if playing → just_audio.play() + seek if drift > 3s
+- If paused → just_audio.pause()
+- If contentId changes (new track) → reload audio source from the new
+  track's storageUrl, then play/seek to positionMs
+```
+
+---
+
+## 6. Watch Together Screen (lib/features/sync_zone/watch_together_screen.dart)
+
+```dart
+// YouTube Watch Together using youtube_player_flutter + Firestore sync.
+
+Layout:
+
+┌─────────────────────────────────────────────────────┐
+│  AppBar: "Watch Together 🎬" | Watchlist icon       │
+├─────────────────────────────────────────────────────┤
+│  Search/paste bar:                                   │
+│  [ Paste YouTube link or search...  ] [Add]         │
+│  Subtitle: "YouTube only — paste a video URL"       │
+├─────────────────────────────────────────────────────┤
+│  YoutubePlayer widget (youtube_player_flutter)       │
+│  - 16:9 aspect ratio                                 │
+│  - Custom controls bar underneath (not YouTube's    │
+│    default controls, which can't be synced):        │
+│      ▶/⏸   progress slider   time   fullscreen      │
+│  - Conductor sees active controls                    │
+│  - Listener sees greyed controls + "Partner is      │
+│    controlling" label                                │
+├─────────────────────────────────────────────────────┤
+│  PartnerAvatarPair — "Watching together ❤️"         │
+├─────────────────────────────────────────────────────┤
+│  ReactionOverlay: 4 emoji buttons floating above    │
+│  video corner: ❤️ 😂 😭 😮                         │
+│  Tap → writes to Firestore syncSession/reactions    │
+│  → partner sees the emoji float up on their screen  │
+│  Reactions auto-delete after 4 seconds via a        │
+│  Cloud Function TTL (already in the backend cron)   │
+├─────────────────────────────────────────────────────┤
+│  Watch List section: cards of queued videos          │
+│  Each: thumbnail, title, added-by, "Watch now" btn  │
+└─────────────────────────────────────────────────────┘
+
+URL parsing: extract videoId from any valid YouTube URL format:
+  https://youtube.com/watch?v=VIDEOID
+  https://youtu.be/VIDEOID
+  https://youtube.com/shorts/VIDEOID
+Use a simple regex or Uri.parse() — extract the 'v' query parameter.
+
+Conductor sync logic:
+- Use YoutubePlayerController; listen to its value.position and value.playerState
+- On play/pause/seek: write to syncSession via POST /api/sync/session with
+  type='youtube', contentId=videoId, state, positionMs
+- Write position every 5 seconds
+
+Listener sync logic:
+- Firestore snapshot on syncSession/current
+- When state.playing → controller.play() + seek if drift > 3s
+- When state.paused → controller.pause()
+- When contentId changes → load new video: controller.load(newVideoId)
+
+Reaction listener:
+- Second Firestore snapshot on syncSession/reactions — any new doc triggers
+  a FloatingReactionWidget that animates the emoji floating upward from
+  the bottom-right corner of the video, fades out over 4 seconds.
+  Use an AnimatedList or an overlay entry — don't rebuild the whole screen.
+```
+
+---
+
+## 7. Deep link setup (app_links integration)
+
+```dart
+// In main.dart, initialise app_links to catch Spotify OAuth callbacks:
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // ... existing Firebase init ...
+  runApp(const HeartSyncApp());
+}
+
+// In your root widget's initState:
+final _appLinks = AppLinks();
+
+@override
+void initState() {
+  super.initState();
+  _appLinks.uriLinkStream.listen((uri) {
+    if (uri.scheme == 'heartsync' && uri.host == 'callback') {
+      final spotify = uri.queryParameters['spotify'];
+      if (spotify == 'connected') {
+        // Close the SpotifyLoginWebView if it's still open
+        // Update SpotifyController.isConnected = true
+        // Show a success SnackBar: "Spotify connected! 🎵"
+        context.read<SpotifyController>().checkConnection();
+      }
+    }
+  });
+}
+
+// Android: add to AndroidManifest.xml inside <activity>:
+// <intent-filter android:autoVerify="true">
+//   <action android:name="android.intent.action.VIEW" />
+//   <category android:name="android.intent.category.DEFAULT" />
+//   <category android:name="android.intent.category.BROWSABLE" />
+//   <data android:scheme="heartsync" android:host="callback" />
+// </intent-filter>
+
+// iOS: add to Info.plist:
+// <key>CFBundleURLTypes</key>
+// <array>
+//   <dict>
+//     <key>CFBundleURLSchemes</key>
+//     <array><string>heartsync</string></array>
+//   </dict>
+// </array>
+```
+
+---
+
+## 8. Add Sync Zone to Home feature carousel + nav
+
+```dart
+// In Home's FeatureCardCarousel, add a Sync Zone card:
+FeatureCard(
+  emoji:    '🎵',
+  title:    'Sync Zone',
+  subtitle: 'Music & movies together',
+  gradient: [Color(0xFFE8A598), Color(0xFFF3C98B)], // rose gold → champagne
+  onTap:    () => Navigator.pushNamed(context, '/sync-zone'),
+),
+
+// Register the route in your router:
+'/sync-zone': (context) => const SyncZoneScreen(),
+```
+
+---
+
+## 9. Premium gating
+
+```dart
+// Couple Radio: free tier (3 tracks max), Premium: unlimited
+// Spotify Together: Premium only
+// Watch Together: free (no limit — YouTube is already free)
+//
+// Gate using the existing RevenueCat entitlement check:
+// if (!isPremium && radioTracks.length >= 3) show UpgradeSheet
+// if (!isPremium && tappingSpotify) show UpgradeSheet
+//
+// UpgradeSheet: a bottom sheet with your Premium/Lifetime options,
+// matching whatever active theme is selected.
+```
+
+---
+
+## 10. Error states every screen must handle
+
+```dart
+// Every screen in Sync Zone must show a clear, friendly state for:
+//
+// 1. Partner not in session yet:
+//    "Waiting for [partner name] to join... 💭"
+//    + "Share invite" button (deep link to the session)
+//
+// 2. Spotify not connected (Spotify Together only):
+//    Illustrated empty state: headphones illustration
+//    "Connect your Spotify to listen together"
+//    [Connect Spotify] primary button → starts OAuth flow
+//
+// 3. Audio loading (Couple Radio):
+//    CassettePlayerWidget with shimmer sweep on the reels
+//    "Loading your station..." text
+//
+// 4. No tracks in queue (Couple Radio):
+//    Empty state: cassette tape illustration
+//    "Add your first song ❤️"
+//    [Add a song] button
+//
+// 5. No video loaded (Watch Together):
+//    Empty state: movie clapper illustration
+//    "Paste a YouTube link to watch together"
+//    The URL paste bar prominent at top
+//
+// 6. Network error on any screen:
+//    Retry button + "Check your connection" message
+//    Never a blank screen or a silent spinner
+```

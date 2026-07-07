@@ -16,6 +16,8 @@
 const express = require('express');
 const router = express.Router();
 const { getFirestore } = require('../firebase');
+const verifyToken = require('../middleware/verifyToken');
+const getCouple   = require('../middleware/getCouple');
 
 // ── Env ────────────────────────────────────────────────────────────────────────
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -307,10 +309,11 @@ router.get('/current-track/:uid', async (req, res) => {
   }
 });
 
-// POST /api/spotify/play  { uid, trackUri?, positionMs? }
-router.post('/play', async (req, res) => {
-  const { uid, trackUri, positionMs = 0 } = req.body || {};
-  if (!uid) return res.status(400).json({ error: 'uid required' });
+// POST /api/spotify/play  { trackUri?, positionMs? }
+// UID is resolved from the Firebase token — never trusted from the body.
+router.post('/play', verifyToken, async (req, res) => {
+  const uid = req.user.uid;
+  const { trackUri, positionMs = 0 } = req.body || {};
 
   const token = await getAccessToken(uid);
   if (!token) return res.status(401).json({ error: 'not_connected' });
@@ -336,10 +339,9 @@ router.post('/play', async (req, res) => {
   }
 });
 
-// PUT /api/spotify/pause  { uid }
-router.put('/pause', async (req, res) => {
-  const { uid } = req.body || {};
-  if (!uid) return res.status(400).json({ error: 'uid required' });
+// PUT /api/spotify/pause  (UID from token)
+router.put('/pause', verifyToken, async (req, res) => {
+  const uid = req.user.uid;
 
   const token = await getAccessToken(uid);
   if (!token) return res.status(401).json({ error: 'not_connected' });
@@ -354,10 +356,10 @@ router.put('/pause', async (req, res) => {
   }
 });
 
-// PUT /api/spotify/seek  { uid, positionMs }
-router.put('/seek', async (req, res) => {
-  const { uid, positionMs } = req.body || {};
-  if (!uid) return res.status(400).json({ error: 'uid required' });
+// PUT /api/spotify/seek  { positionMs }  (UID from token)
+router.put('/seek', verifyToken, async (req, res) => {
+  const uid = req.user.uid;
+  const { positionMs } = req.body || {};
 
   const token = await getAccessToken(uid);
   if (!token) return res.status(401).json({ error: 'not_connected' });
@@ -377,10 +379,18 @@ router.put('/seek', async (req, res) => {
  * Applies the conductor's current Spotify state to the listener's account.
  * Called by the listener's Flutter app when drift > 3s.
  */
-router.post('/sync', async (req, res) => {
-  const { conductorUid, listenerUid, trackUri, positionMs = 0, isPlaying = true } = req.body || {};
+// POST /api/spotify/sync  { listenerUid, trackUri, positionMs, isPlaying }
+// conductorUid is resolved from the Firebase token — listenerUid must be partner.
+router.post('/sync', verifyToken, getCouple, async (req, res) => {
+  const { listenerUid, trackUri, positionMs = 0, isPlaying = true } = req.body || {};
   if (!listenerUid || !trackUri) {
     return res.status(400).json({ error: 'listenerUid and trackUri required' });
+  }
+
+  // Verify listenerUid belongs to the same couple
+  const members = req.coupleData?.members || req.coupleData?.memberIds || [];
+  if (!members.includes(listenerUid)) {
+    return res.status(403).json({ error: 'listenerUid is not in your couple space' });
   }
 
   const token = await getAccessToken(listenerUid);
@@ -413,9 +423,10 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-// DELETE /api/spotify/disconnect/:uid
-router.delete('/disconnect/:uid', async (req, res) => {
-  const { uid } = req.params;
+// DELETE /api/spotify/disconnect  (UID from token)
+// Also supports legacy /disconnect/:uid path for backwards compat with old clients
+router.delete('/disconnect', verifyToken, async (req, res) => {
+  const uid = req.user.uid;
   await deleteTokens(uid);
 
   // Remove from couple's status collection
