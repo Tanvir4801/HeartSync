@@ -124,8 +124,8 @@ class _MemoryCard extends StatelessWidget {
           if (memory.caption.isNotEmpty)
             Positioned(bottom: 0, left: 0, right: 0, child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.75)])),
-              child: Text(memory.caption, style: const TextStyle(color: Colors.white, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+              decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, AppTheme.surface.withValues(alpha: 0.90)])),
+              child: Text(memory.caption, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
             )),
           if (memory.isFavorite) const Positioned(top: 8, right: 8, child: Icon(Icons.favorite, color: Color(0xFFE05C7E), size: 16)),
         ]),
@@ -135,17 +135,17 @@ class _MemoryCard extends StatelessWidget {
 
   void _showFullScreen(BuildContext context) {
     showDialog(context: context, builder: (_) => Dialog(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.surface,
       insetPadding: const EdgeInsets.all(16),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         if (memory.url.isNotEmpty) ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(memory.url, fit: BoxFit.contain)),
-        if (memory.caption.isNotEmpty) Padding(padding: const EdgeInsets.all(16), child: Text(memory.caption, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center)),
+        if (memory.caption.isNotEmpty) Padding(padding: const EdgeInsets.all(16), child: Text(memory.caption, style: const TextStyle(color: AppTheme.textPrimary), textAlign: TextAlign.center)),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           IconButton(
             icon: Icon(memory.isFavorite ? Icons.favorite : Icons.favorite_border, color: const Color(0xFFE05C7E)),
             onPressed: () { repo.toggleFavorite(coupleId, memory.id, memory.isFavorite); Navigator.pop(context); },
           ),
-          IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
+          IconButton(icon: const Icon(Icons.close, color: AppTheme.textPrimary), onPressed: () => Navigator.pop(context)),
         ]),
       ]),
     ));

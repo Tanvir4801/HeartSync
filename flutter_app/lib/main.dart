@@ -139,8 +139,25 @@ class _CoupleGateState extends State<_CoupleGate> {
   void initState() { super.initState(); _check(); }
 
   Future<void> _check() async {
-    final id = await _repo.getExistingCoupleId(widget.uid);
-    if (mounted) setState(() { _coupleId = id; _loading = false; });
+    try {
+      final id = await _repo
+          .getExistingCoupleId(widget.uid)
+          .timeout(const Duration(seconds: 8));
+      if (mounted) {
+        setState(() {
+          _coupleId = id;
+          _loading = false;
+        });
+      }
+    } catch (e, s) {
+      debugPrint('[_CoupleGate] lookup failed: $e\n$s');
+      if (mounted) {
+        setState(() {
+          _coupleId = null;
+          _loading = false;
+        });
+      }
+    }
   }
 
   @override

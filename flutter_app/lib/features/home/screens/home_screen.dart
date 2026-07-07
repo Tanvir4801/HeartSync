@@ -31,42 +31,41 @@ class HomeScreen extends StatelessWidget {
     debugPrint('[HomeScreen] build coupleId=$coupleId uid=$uid');
     try {
       final td = context.watch<ThemeProvider>().data;
-      return Scaffold(
-        backgroundColor: td.background,
-        body: SafeArea(
-          child: SingleChildScrollView(
+      return ColoredBox(
+        color: td.background,
+        child: SafeArea(
+          child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Invisible presence writer — writes to Firestore every 3 min
-                _PresenceWriter(coupleId: coupleId, uid: uid),
-                // Hero card with partner online indicator
-                GreetingHeroCard(coupleId: coupleId, uid: uid),
-                const SizedBox(height: 12),
-                // 4 independent stat badges
-                StatCardRow(coupleId: coupleId),
-                // ❤️ NEW: Virtual Heartbeat Tap
-                _HeartbeatSection(coupleId: coupleId, uid: uid),
-                // Daily surprise
-                _DailySurprise(coupleId: coupleId),
-                // Clock row
-                _ClockRow(),
-                // Mood picker
-                _MoodSection(coupleId: coupleId, uid: uid),
-                // ❤️ NEW: Duo Vibe Reveal (shows combined couple energy after both pick)
-                _DuoVibeSection(coupleId: coupleId, uid: uid),
-                // ❤️ NEW: Secret Love Jar
-                _LoveJarSection(coupleId: coupleId, uid: uid),
-                // Hug buttons
-                _HugButtons(coupleId: coupleId, uid: uid),
-                // Quick actions
-                _QuickActions(coupleId: coupleId),
-                // Feature carousel
-                FeatureCardCarousel(coupleId: coupleId),
-                const SizedBox(height: 40),
-              ],
-            ),
+            padding: const EdgeInsets.only(bottom: 40),
+            children: [
+              const _HomeIntroCard(),
+              const SizedBox(height: 8),
+              // Invisible presence writer — writes to Firestore every 3 min
+              _PresenceWriter(coupleId: coupleId, uid: uid),
+              // Hero card with partner online indicator
+              GreetingHeroCard(coupleId: coupleId, uid: uid),
+              const SizedBox(height: 12),
+              // 4 independent stat badges
+              StatCardRow(coupleId: coupleId),
+              // ❤️ NEW: Virtual Heartbeat Tap
+              _HeartbeatSection(coupleId: coupleId, uid: uid),
+              // Daily surprise
+              _DailySurprise(coupleId: coupleId),
+              // Clock row
+              _ClockRow(),
+              // Mood picker
+              _MoodSection(coupleId: coupleId, uid: uid),
+              // ❤️ NEW: Duo Vibe Reveal (shows combined couple energy after both pick)
+              _DuoVibeSection(coupleId: coupleId, uid: uid),
+              // ❤️ NEW: Secret Love Jar
+              _LoveJarSection(coupleId: coupleId, uid: uid),
+              // Hug buttons
+              _HugButtons(coupleId: coupleId, uid: uid),
+              // Quick actions
+              _QuickActions(coupleId: coupleId),
+              // Feature carousel
+              FeatureCardCarousel(coupleId: coupleId),
+            ],
           ),
         ),
       );
@@ -80,6 +79,80 @@ class HomeScreen extends StatelessWidget {
         )),
       );
     }
+  }
+}
+
+class _HomeIntroCard extends StatelessWidget {
+  const _HomeIntroCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final td = context.watch<ThemeProvider>().data;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 132),
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              td.primary.withValues(alpha: td.isLight ? 0.24 : 0.22),
+              td.secondary.withValues(alpha: td.isLight ? 0.20 : 0.18),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(td.cardRadius),
+          border: Border.all(color: td.primary.withValues(alpha: 0.45), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: td.primary.withValues(alpha: 0.20),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: td.isLight ? 0.92 : 0.16),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(Icons.favorite, color: td.isLight ? td.primary : Colors.white, size: 26),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Dashboard Ready',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: td.isLight ? td.textOnSurface : Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'If anything below is still loading, this banner confirms the page is mounted and ready.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: td.isLight ? td.textOnSurface.withValues(alpha: 0.74) : Colors.white.withValues(alpha: 0.92),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -738,7 +811,16 @@ class _ClockRow extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             _ClockBlock(label: 'Your Time', time: fmt(now), color: td.primary, textColor: td.textOnSurface),
-            Column(children: [HorizonLine(height: 2, colors: [td.primary, td.secondary]), const SizedBox(height: 4), const Text('❤️', style: TextStyle(fontSize: 16))]),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  HorizonLine(height: 2, colors: [td.primary, td.secondary]),
+                  const SizedBox(height: 4),
+                  const Text('❤️', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
             _ClockBlock(label: "Partner's Time", time: fmt(now.toUtc().add(const Duration(hours: 2))), color: td.primary, textColor: td.textOnSurface),
           ]),
         ),
@@ -1006,10 +1088,11 @@ class _LoveJarSectionState extends State<_LoveJarSection> with SingleTickerProvi
 
   Future<void> _loadJar() async {
     try {
-      final snap = await FirestoreService().sub(widget.coupleId, 'lovejar')
+      final snap = await FirestoreService()
+          .sub(widget.coupleId, 'lovejar')
           .where('toUid', isEqualTo: widget.uid)
-          .orderBy('addedAt', descending: true)
-          .limit(20).get();
+          .limit(20)
+          .get();
       if (mounted) {
         setState(() {
           _customMessages = snap.docs.map((d) {
@@ -1355,7 +1438,11 @@ class _FeatureCardCarouselState extends State<FeatureCardCarousel> with TickerPr
     _fades  = _ctrls.map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut)).toList();
     _scales = _ctrls.map((c) => Tween(begin: 0.85, end: 1.0).animate(CurvedAnimation(parent: c, curve: Curves.easeOut))).toList();
     for (int i = 0; i < _count; i++) {
-      Future.delayed(Duration(milliseconds: 80 + i * 65), () { if (mounted) _ctrls[i].forward(); });
+      Future.delayed(Duration(milliseconds: 80 + i * 65), () {
+        if (mounted) {
+          _ctrls[i].forward();
+        }
+      });
     }
   }
 
@@ -1371,7 +1458,12 @@ class _FeatureCardCarouselState extends State<FeatureCardCarousel> with TickerPr
   ];
 
   @override
-  void dispose() { for (final c in _ctrls) c.dispose(); super.dispose(); }
+  void dispose() {
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

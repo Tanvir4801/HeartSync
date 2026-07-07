@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 // ─── Romantic Theme System ────────────────────────────────────────────────────
 
-enum RomanticTheme { horizon, midnightBloom, goldenHour, northernLights, sweetheart }
+enum RomanticTheme { sweetheart }
 
 class HeartSyncThemeData {
   final RomanticTheme id;
@@ -53,23 +53,23 @@ class HeartSyncThemeData {
 }
 
 class AppTheme {
-  // ── Static tokens (Horizon default / shared) ──────────────────────────────
-  static const duskIndigo   = Color(0xFF1C1B33);
-  static const inkDark      = Color(0xFF121022);
-  static const dawnAmber    = Color(0xFFF2A65A);
-  static const horizonRose  = Color(0xFFE8927C);
-  static const lavenderDusk = Color(0xFF9B8AC4);
-  static const surface      = Color(0xFF252440);
-  static const surface2     = Color(0xFF2E2C4A);
-  static const border       = Color(0xFF3A3859);
-  static const textPrimary  = Color(0xFFF3F1F6);
-  static const textMuted    = Color(0xFF8E8BAA);
-  static const success      = Color(0xFF4ADE80);
-  static const warning      = Color(0xFFFACC15);
-  static const danger       = Color(0xFFF87171);
+  // ── Static tokens (Sweetheart-first / shared) ─────────────────────────────
+  static const duskIndigo   = Color(0xFFF7F1FF);
+  static const inkDark      = Color(0xFF4A3B6B);
+  static const dawnAmber    = Color(0xFFF4A227);
+  static const horizonRose  = Color(0xFFFF9EB5);
+  static const lavenderDusk = Color(0xFF9B87F5);
+  static const surface      = Color(0xFFFFFBFE);
+  static const surface2     = Color(0xFFF3EFFF);
+  static const border       = Color(0xFFE2D9FF);
+  static const textPrimary  = Color(0xFF4A3B6B);
+  static const textMuted    = Color(0xFF8E7BAF);
+  static const success      = Color(0xFF5CCF9F);
+  static const warning      = Color(0xFFF6B24B);
+  static const danger       = Color(0xFFE96A82);
   static const roseGold     = Color(0xFFE05C7E);
-  static const softPeach    = Color(0xFFFFB3C6);
-  static const deepPurple   = Color(0xFF2D1B69);
+  static const softPeach    = Color(0xFFFFD6C7);
+  static const deepPurple   = Color(0xFF7B61D1);
 
   // ── Sweetheart static tokens ─────────────────────────────────────────────
   static const sweetLavenderPop  = Color(0xFF9B87F5);
@@ -84,34 +84,6 @@ class AppTheme {
 
   // ── Theme catalogue ───────────────────────────────────────────────────────
   static const Map<RomanticTheme, HeartSyncThemeData> themes = {
-    RomanticTheme.horizon: HeartSyncThemeData(
-      id: RomanticTheme.horizon, name: 'Horizon Line', emoji: '🌅',
-      background: Color(0xFF1C1B33), surface: Color(0xFF252440), surface2: Color(0xFF2E2C4A), border: Color(0xFF3A3859),
-      primary: Color(0xFFF2A65A), secondary: Color(0xFFE8927C), accent: Color(0xFF9B8AC4),
-      gradient: [Color(0xFF1C1B33), Color(0xFF2A2448), Color(0xFF1C1B33)],
-      heartColors: [Color(0xFFF2A65A), Color(0xFFE8927C), Color(0xFFFFD4A0)],
-    ),
-    RomanticTheme.midnightBloom: HeartSyncThemeData(
-      id: RomanticTheme.midnightBloom, name: 'Midnight Rose', emoji: '🌹',
-      background: Color(0xFF0D0D1A), surface: Color(0xFF1A1528), surface2: Color(0xFF231D35), border: Color(0xFF3D2B50),
-      primary: Color(0xFFE05C7E), secondary: Color(0xFFB8449C), accent: Color(0xFFFFB3C6),
-      gradient: [Color(0xFF0D0D1A), Color(0xFF1A0D2E), Color(0xFF0D0D1A)],
-      heartColors: [Color(0xFFE05C7E), Color(0xFFB8449C), Color(0xFFFFB3C6)],
-    ),
-    RomanticTheme.goldenHour: HeartSyncThemeData(
-      id: RomanticTheme.goldenHour, name: 'Golden Hour', emoji: '✨',
-      background: Color(0xFF1A1208), surface: Color(0xFF2A1E0A), surface2: Color(0xFF352610), border: Color(0xFF4A3520),
-      primary: Color(0xFFF4A227), secondary: Color(0xFFE8713C), accent: Color(0xFFFFD9A0),
-      gradient: [Color(0xFF1A1208), Color(0xFF2A1800), Color(0xFF1A1208)],
-      heartColors: [Color(0xFFF4A227), Color(0xFFE8713C), Color(0xFFFFE4B0)],
-    ),
-    RomanticTheme.northernLights: HeartSyncThemeData(
-      id: RomanticTheme.northernLights, name: 'Northern Lights', emoji: '🌌',
-      background: Color(0xFF080F1A), surface: Color(0xFF0F1A2E), surface2: Color(0xFF162338), border: Color(0xFF1E3048),
-      primary: Color(0xFF56CFE1), secondary: Color(0xFF9B5DE5), accent: Color(0xFFAEEEF8),
-      gradient: [Color(0xFF080F1A), Color(0xFF0A1525), Color(0xFF080F1A)],
-      heartColors: [Color(0xFF56CFE1), Color(0xFF9B5DE5), Color(0xFFAEEEF8)],
-    ),
     RomanticTheme.sweetheart: HeartSyncThemeData(
       id: RomanticTheme.sweetheart, name: 'Sweetheart', emoji: '🍬',
       background: Color(0xFFF3EFFF),
@@ -124,16 +96,18 @@ class AppTheme {
       gradient: [Color(0xFFF3EFFF), Color(0xFFFDEEF6), Color(0xFFF3EFFF)],
       heartColors: [Color(0xFF9B87F5), Color(0xFFFF9EB5), Color(0xFFFFD66B)],
       isLight: true,
-      cardRadius: 26,
+      cardRadius: 28,
       textOnSurface: Color(0xFF4A3B6B),
-      shimmerBase: Color(0xFFE8E0FF),
-      shimmerHighlight: Color(0xFFF3EFFF),
+      shimmerBase: Color(0xFFE7DBFF),
+      shimmerHighlight: Color(0xFFFDF7FF),
       badgeColors: [
         Color(0xFF8CE0C9), Color(0xFF9B87F5), Color(0xFFFF9EB5),
         Color(0xFFFFD66B), Color(0xFF8CE0C9), Color(0xFF9B87F5), Color(0xFFFF9EB5),
       ],
     ),
   };
+
+  static List<HeartSyncThemeData> get availableThemes => [themes[RomanticTheme.sweetheart]!];
 
   static HeartSyncThemeData themeData(RomanticTheme t) => themes[t]!;
 
@@ -273,11 +247,14 @@ class AppTheme {
 // ─── Theme provider ──────────────────────────────────────────────────────────
 
 class ThemeProvider extends ChangeNotifier {
-  RomanticTheme _current = RomanticTheme.horizon;
+  RomanticTheme _current = RomanticTheme.sweetheart;
   RomanticTheme get current => _current;
   HeartSyncThemeData get data => AppTheme.themeData(_current);
 
-  void setTheme(RomanticTheme t) { _current = t; notifyListeners(); }
+  void setTheme(RomanticTheme t) {
+    _current = t;
+    notifyListeners();
+  }
 }
 
 // ─── Clay Card (Sweetheart claymorphism, falls back to standard on dark) ─────
@@ -326,7 +303,7 @@ class HorizonLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = colors ?? const [AppTheme.duskIndigo, AppTheme.horizonRose, AppTheme.dawnAmber];
+    final cs = colors ?? const [AppTheme.lavenderDusk, AppTheme.horizonRose, AppTheme.dawnAmber];
     return SizedBox(
       height: height, width: double.infinity,
       child: FractionallySizedBox(
@@ -433,7 +410,12 @@ class _FloatingHeartsState extends State<FloatingHearts> with TickerProviderStat
   }
 
   @override
-  void dispose() { for (final c in _ctrls) c.dispose(); super.dispose(); }
+  void dispose() {
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => IgnorePointer(child: AnimatedBuilder(

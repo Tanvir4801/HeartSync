@@ -73,7 +73,7 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
             onTap: _pickOpenDate,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(color: const Color(0xFF23232F), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2E2E3E))),
+              decoration: BoxDecoration(color: const Color.fromARGB(255, 149, 149, 252), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2E2E3E))),
               child: Row(children: [
                 const Icon(Icons.calendar_today, color: Color(0xFFE05C7E), size: 18),
                 const SizedBox(width: 10),

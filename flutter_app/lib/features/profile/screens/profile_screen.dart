@@ -51,7 +51,7 @@ class ProfileScreen extends StatelessWidget {
           final memberEmails = List<String>.from(data['memberEmails'] ?? []);
           final membersDisplay = memberEmails.isNotEmpty
               ? memberEmails.join(', ')
-              : (data['members'] as List?)?.map((e) => e.toString().substring(0, 6) + '…').join(', ') ?? '—';
+              : (data['members'] as List?)?.map((e) => '${e.toString().substring(0, 6)}…').join(', ') ?? '—';
           final anniversary = (data['anniversaryDate'] as Timestamp?)?.toDate();
           final inviteCode = data['inviteCode'] as String? ?? '—';
           final streak = data['streak'] as int? ?? 0;
@@ -119,7 +119,7 @@ class _CoverBanner extends StatelessWidget {
       child: Stack(children: [
         if (isPremium) Positioned(top: 12, right: 12, child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: AppTheme.surface.withValues(alpha: 0.82), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.border.withValues(alpha: 0.7))),
           child: const Text('PREMIUM ✨', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.dawnAmber)),
         )),
         const Center(child: Text('💕', style: TextStyle(fontSize: 48))),

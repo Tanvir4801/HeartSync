@@ -15,11 +15,15 @@ import '../../memories/models/memory_model.dart';
 
 const _quickReplies = ['Good morning ☀️', 'Good night 🌙', 'Miss you 💕', 'Love you ❤️', 'Thinking of you 💭'];
 
-// Palette constants
-const _roseGold    = Color(0xFFE8A598);
-const _lavender    = Color(0xFFA78BFA);
-const _midnight    = Color(0xFF1B1836);
-const _moonWhite   = Color(0xFFF8F6F2);
+// HeartSync Dashboard-Matched Cute Palette
+const _roseGold  = Color(0xFFFF8FB1); // Sweet pink
+const _lavender  = Color(0xFF9B7BFF); // Dashboard purple
+const _midnight  = Color(0xFF523B72); // Deep purple text only
+const _moonWhite = Color(0xFFFFFBFD); // Warm white
+
+// Extra UI colors
+const _softLavender = Color(0xFFF4EEFF);
+const _cardWhite    = Color(0xFFFFFBFD);
 
 class ChatScreen extends StatefulWidget {
   final String coupleId;
@@ -37,7 +41,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // ── Partner ──────────────────────────────────────────────────────────────
   String _partnerName = 'Your Love';
-  String _partnerUid  = '';
   DateTime? _partnerLastSeen;
 
   // ── Sleep Together ────────────────────────────────────────────────────────
@@ -95,12 +98,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (mounted) setState(() {
         _partnerName    = name;
-        _partnerUid     = partnerUid;
         _isAnniversary  = isAnn;
         _anniversaryDays = ann != null ? now.difference(ann).inDays : null;
       });
 
-      if (partnerUid.isNotEmpty) _listenPresence(partnerUid);
+      if (partnerUid.isNotEmpty) {
+        _listenPresence(partnerUid);
+      }
     } catch (e) {
       debugPrint('[ChatScreen] loadCoupleData error: $e');
     }
@@ -224,71 +228,219 @@ class _ChatScreenState extends State<ChatScreen> {
     MoodAura.excited    => const Color(0xFFF3C98B),
     _                   => _roseGold,
   };
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: LoveSkyBackground(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: AnimatedContainer(
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        gradient: _myIsSleeping
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF211B46),
+                  Color(0xFF35275F),
+                  Color(0xFF5B4278),
+                ],
+              )
+            : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFFFF4F8),
+                  Color(0xFFF5EEFF),
+                  Color(0xFFFFF1F5),
+                ],
+              ),
+      ),
+      child: LoveSkyBackground(
         moodOverride: _moodAura,
         isAnniversary: _isAnniversary,
         child: SafeArea(
-          child: Column(children: [
-            // ── App bar with partner name + live status ────────────────────
-            _ChatHeader(
-              partnerName: _partnerName,
-              lastSeen: _partnerLastSeen,
-              isSleeping: _myIsSleeping,
-              onSleepTap: _toggleSleep,
-            ),
+          child: Column(
+            children: [
+              _ChatHeader(
+                partnerName: _partnerName,
+                lastSeen: _partnerLastSeen,
+                isSleeping: _myIsSleeping,
+                onSleepTap: _toggleSleep,
+              ),
 
-            // ── Anniversary banner ─────────────────────────────────────────
-            if (_isAnniversary && _anniversaryDays != null)
-              _AnniversaryBanner(days: _anniversaryDays!),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                child: _myIsSleeping && !_isBothSleeping
+                    ? Container(
+                        key: const ValueKey('dream-mode'),
+                        width: double.infinity,
+                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF7763D9),
+                              Color(0xFFB878C8),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x409B7BFF),
+                              blurRadius: 16,
+                              offset: Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          children: [
+                            Text(
+                              '🌙',
+                              style: TextStyle(fontSize: 20),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Dream Mode is on',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Waiting for your love to join you 💕',
+                                    style: TextStyle(
+                                      color: Color(0xFFE8DFFF),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('normal-mode'),
+                      ),
+              ),
 
-            // ── Sleep mode overlay or message list ─────────────────────────
-            Expanded(child: _isBothSleeping
-              ? _SleepOverlay(onWake: _toggleSleep)
-              : Stack(children: [
-                  Positioned.fill(child: HeartbeatGlow(color: _glowColor)),
-                  _MessageList(coupleId: widget.coupleId, uid: _uid, repo: _repo, scroll: _scroll),
-                  // Typing indicator at bottom of list
-                  Positioned(bottom: 8, left: 16, right: 16, child: _TypingIndicatorWrapper(
-                    coupleId: widget.coupleId, uid: _uid, repo: _repo, partnerName: _partnerName,
-                  )),
-                  // Phase S: Butterfly animation — fires once on "I love you" / "I miss you"
-                  if (_showButterflyAnim)
-                    Positioned.fill(child: IgnorePointer(child: _ButterflyOverlay())),
-                  // Phase S: Wishing star — appears once per session at random
-                  if (_wishingStarVisible)
-                    Positioned(top: 14, right: 14, child: _WishingStarButton(
-                      coupleId: widget.coupleId, uid: _uid,
-                      onDismiss: () => setState(() => _wishingStarVisible = false),
-                    )),
-                ]),
-            ),
+              if (_isAnniversary && _anniversaryDays != null)
+                _AnniversaryBanner(
+                  days: _anniversaryDays!,
+                ),
 
-            // ── Quick replies ──────────────────────────────────────────────
-            if (_showQuick)
-              _QuickReplies(replies: _quickReplies, onTap: (r) { _send(r); setState(() => _showQuick = false); }),
+              Expanded(
+                child: _isBothSleeping
+                    ? _SleepOverlay(
+                        onWake: _toggleSleep,
+                      )
+                    : AnimatedContainer(
+                        duration: const Duration(milliseconds: 700),
+                        decoration: BoxDecoration(
+                          color: _myIsSleeping
+                              ? const Color(0xFF17132F)
+                                  .withValues(alpha: 0.22)
+                              : Colors.transparent,
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: HeartbeatGlow(
+                                color: _glowColor,
+                              ),
+                            ),
 
-            // ── Phase R: Anniversary memory highlight card ─────────────────
-            if (_isAnniversary) _AnniversaryMemoryCard(coupleId: widget.coupleId),
+                            _MessageList(
+                              coupleId: widget.coupleId,
+                              uid: _uid,
+                              repo: _repo,
+                              scroll: _scroll,
+                            ),
 
-            // ── Input bar ──────────────────────────────────────────────────
-            _InputBar(
-              ctrl: _ctrl,
-              onChanged: _onTextChanged,
-              onSend: _send,
-              onToggleQuick: () => setState(() => _showQuick = !_showQuick),
-              showingQuick: _showQuick,
-              isSleeping: _myIsSleeping,
-              onSleepTap: _toggleSleep,
-            ),
-          ]),
+                            Positioned(
+                              bottom: 8,
+                              left: 16,
+                              right: 16,
+                              child: _TypingIndicatorWrapper(
+                                coupleId: widget.coupleId,
+                                uid: _uid,
+                                repo: _repo,
+                                partnerName: _partnerName,
+                              ),
+                            ),
+
+                            if (_showButterflyAnim)
+                              const Positioned.fill(
+                                child: IgnorePointer(
+                                  child: _ButterflyOverlay(),
+                                ),
+                              ),
+
+                            if (_wishingStarVisible)
+                              Positioned(
+                                top: 14,
+                                right: 14,
+                                child: _WishingStarButton(
+                                  coupleId: widget.coupleId,
+                                  uid: _uid,
+                                  onDismiss: () {
+                                    setState(() {
+                                      _wishingStarVisible = false;
+                                    });
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+              ),
+
+              if (_showQuick)
+                _QuickReplies(
+                  replies: _quickReplies,
+                  onTap: (reply) {
+                    _send(reply);
+                    setState(() {
+                      _showQuick = false;
+                    });
+                  },
+                ),
+
+              if (_isAnniversary)
+                _AnniversaryMemoryCard(
+                  coupleId: widget.coupleId,
+                ),
+
+              _InputBar(
+                ctrl: _ctrl,
+                onChanged: _onTextChanged,
+                onSend: _send,
+                onToggleQuick: () {
+                  setState(() {
+                    _showQuick = !_showQuick;
+                  });
+                },
+                showingQuick: _showQuick,
+                isSleeping: _myIsSleeping,
+                onSleepTap: _toggleSleep,
+              ),
+            ],
+          ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // ─── Chat Header with partner name + live heartbeat status ───────────────────
@@ -298,54 +450,297 @@ class _ChatHeader extends StatelessWidget {
   final DateTime? lastSeen;
   final bool isSleeping;
   final VoidCallback onSleepTap;
-  const _ChatHeader({required this.partnerName, required this.lastSeen, required this.isSleeping, required this.onSleepTap});
+
+  const _ChatHeader({
+    required this.partnerName,
+    required this.lastSeen,
+    required this.isSleeping,
+    required this.onSleepTap,
+  });
+
+  bool get _isOnline {
+    if (lastSeen == null) return false;
+    return DateTime.now().difference(lastSeen!).inSeconds < 120;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       decoration: BoxDecoration(
-        color: _midnight.withValues(alpha: 0.6),
-        border: Border(bottom: BorderSide(color: _roseGold.withValues(alpha: 0.12))),
+        color: const Color(0xFFFFFBFD).withValues(alpha: 0.97),
+        border: Border(
+          bottom: BorderSide(
+            color: _lavender.withValues(alpha: 0.14),
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _lavender.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Row(children: [
-        // Avatar
-        Container(width: 38, height: 38,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_roseGold, _lavender]),
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: _roseGold.withValues(alpha: 0.3), blurRadius: 8)],
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFF4EEFF).withValues(alpha: 0.95),
+              const Color(0xFFFFEEF5).withValues(alpha: 0.92),
+            ],
           ),
-          child: Center(child: Text(
-            partnerName.isNotEmpty ? partnerName[0].toUpperCase() : '💕',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-          )),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(
+            color: _lavender.withValues(alpha: 0.18),
+          ),
         ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(partnerName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _moonWhite)),
-          const SizedBox(height: 2),
-          _LiveHeartbeatStatus(lastSeen: lastSeen),
-        ])),
-        // Sleep toggle button
-        GestureDetector(
-          onTap: onSleepTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isSleeping ? _lavender.withValues(alpha: 0.2) : _roseGold.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isSleeping ? _lavender.withValues(alpha: 0.4) : _roseGold.withValues(alpha: 0.25)),
+        child: Row(
+          children: [
+            // ── Unique Couple Avatar Stack ──────────────────────
+            SizedBox(
+              width: 70,
+              height: 52,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // My heart avatar
+                  Positioned(
+                    left: 0,
+                    top: 7,
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBFD),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _lavender.withValues(alpha: 0.18),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '🤍',
+                          style: TextStyle(fontSize: 17),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Partner avatar
+                  Positioned(
+                    left: 27,
+                    top: 0,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFFFF8FB1),
+                            Color(0xFF9B7BFF),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _roseGold.withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          partnerName.isNotEmpty
+                              ? partnerName[0].toUpperCase()
+                              : '💕',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Heart connection badge
+                  Positioned(
+                    left: 27,
+                    bottom: -1,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBFD),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _roseGold.withValues(alpha: 0.25),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _roseGold.withValues(alpha: 0.16),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          _isOnline ? '💓' : '💕',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Text(isSleeping ? '☀️' : '🌙', style: const TextStyle(fontSize: 16)),
-          ),
+
+            const SizedBox(width: 12),
+
+            // ── Name + Romantic Live Status ─────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          partnerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: _midnight,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      if (_isOnline)
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF62C9A5),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: _isOnline
+                              ? const Color(0xFF62C9A5)
+                              : _lavender.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      Flexible(
+                        child: _LiveHeartbeatStatus(
+                          lastSeen: lastSeen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // ── Floating Dream Mode Button ──────────────────────
+            GestureDetector(
+              onTap: onSleepTap,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutBack,
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: isSleeping
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF9B7BFF),
+                            Color(0xFF6F55D9),
+                          ],
+                        )
+                      : const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFFFFF8FB),
+                            Color(0xFFFFEAF2),
+                          ],
+                        ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isSleeping
+                        ? _lavender.withValues(alpha: 0.35)
+                        : _roseGold.withValues(alpha: 0.28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isSleeping
+                          ? _lavender.withValues(alpha: 0.24)
+                          : _roseGold.withValues(alpha: 0.15),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Text(
+                      isSleeping ? '☀️' : '🌙',
+                      key: ValueKey(isSleeping),
+                      style: const TextStyle(fontSize: 21),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-      ]),
+      ),
     );
   }
 }
-
 // ─── Live Heartbeat Status ────────────────────────────────────────────────────
 
 class _LiveHeartbeatStatus extends StatefulWidget {
@@ -574,12 +969,12 @@ class _RomanticTypingIndicatorState extends State<_RomanticTypingIndicator> with
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: _midnight.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _roseGold.withValues(alpha: 0.25)),
-            boxShadow: [BoxShadow(color: _roseGold.withValues(alpha: 0.08), blurRadius: 10)],
+          color: _cardWhite.withValues(alpha: 0.96),            
+          borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _lavender.withValues(alpha: 0.25)),
+            boxShadow: [BoxShadow(color: _lavender.withValues(alpha: 0.08), blurRadius: 10)],
           ),
-          child: Text(_phrases[_phraseIdx], style: const TextStyle(fontSize: 12, color: _roseGold, fontStyle: FontStyle.italic)),
+          child: Text(_phrases[_phraseIdx], style: const TextStyle(fontSize: 12, color: _midnight, fontStyle: FontStyle.italic)),
         ),
       ),
     );
@@ -595,7 +990,7 @@ class _QuickReplies extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     height: 50,
-    color: _midnight.withValues(alpha: 0.9),
+    color: _cardWhite.withValues(alpha: 0.96),
     child: ListView.separated(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -606,10 +1001,28 @@ class _QuickReplies extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: _roseGold.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _roseGold.withValues(alpha: 0.35)),
-          ),
+
+  gradient: LinearGradient(
+
+    colors: [
+
+      _lavender.withValues(alpha: 0.14),
+
+      _roseGold.withValues(alpha: 0.12),
+
+    ],
+
+  ),
+
+  borderRadius: BorderRadius.circular(20),
+
+  border: Border.all(
+
+    color: _lavender.withValues(alpha: 0.25),
+
+  ),
+
+),
           child: Center(child: Text(replies[i], style: const TextStyle(fontSize: 13, color: _roseGold))),
         ),
       ),
@@ -629,8 +1042,19 @@ class _InputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: _midnight.withValues(alpha: 0.95),
-      border: Border(top: BorderSide(color: _roseGold.withValues(alpha: 0.12))),
+     color: _cardWhite.withValues(alpha: 0.98),
+border: Border(
+  top: BorderSide(
+    color: _lavender.withValues(alpha: 0.16),
+  ),
+),
+boxShadow: [
+  BoxShadow(
+    color: _lavender.withValues(alpha: 0.10),
+    blurRadius: 16,
+    offset: const Offset(0, -4),
+  ),
+],
     ),
     padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
     child: SafeArea(top: false, child: Row(children: [
@@ -640,21 +1064,48 @@ class _InputBar extends StatelessWidget {
       ),
       Expanded(child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surface2.withValues(alpha: 0.7),
+          color: _softLavender,          
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: _roseGold.withValues(alpha: 0.18)),
-        ),
+border: Border.all(
+  color: _lavender.withValues(alpha: 0.22),
+),        ),
         child: TextField(
           controller: ctrl,
           onChanged: onChanged,
           maxLines: null,
-          style: const TextStyle(color: _moonWhite, fontSize: 15),
-          decoration: const InputDecoration(
-            hintText: 'Say something beautiful…',
-            hintStyle: TextStyle(color: AppTheme.textMuted, fontStyle: FontStyle.italic),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          ),
+style: const TextStyle(
+
+  color: Color(0xFF523B72),
+
+  fontSize: 15,
+
+  fontWeight: FontWeight.w500,
+
+),
+
+cursorColor: Color(0xFF9B7BFF),         decoration: const InputDecoration(
+
+  hintText: 'Say something beautiful…',
+
+  hintStyle: TextStyle(
+
+    color: Color(0xFFA897BA),
+
+    fontStyle: FontStyle.italic,
+
+  ),
+
+  border: InputBorder.none,
+
+  contentPadding: EdgeInsets.symmetric(
+
+    horizontal: 16,
+
+    vertical: 10,
+
+  ),
+
+),
         ),
       )),
       const SizedBox(width: 8),
@@ -663,8 +1114,14 @@ class _InputBar extends StatelessWidget {
         child: Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_roseGold, Color(0xFFB8628E)]),
-            shape: BoxShape.circle,
+gradient: const LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    _lavender,
+    _roseGold,
+  ],
+),            shape: BoxShape.circle,
             boxShadow: [BoxShadow(color: _roseGold.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3))],
           ),
           child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
